@@ -1,1 +1,2372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude 第三方管理客户端 v2.0</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
+  :root {
+    --bg: #0a0b0f; --bg2: #111217; --bg3: #1a1c24; --bg4: #22253000;
+    --border: #2a2d3a; --border2: #363a4a;
+    --accent: #7c6af7; --accent2: #a89ef8; --accent3: #5e4de0;
+    --green: #43d98e; --red: #f06a6a; --yellow: #f5c842;
+    --text: #e8eaf0; --text2: #9299b0; --text3: #5d6380;
+    --glow: 0 0 30px rgba(124,106,247,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body { font-family:'Sora',sans-serif; background:var(--bg); color:var(--text); height:100vh; overflow:hidden; display:flex; }
+
+  /* ── Sidebar ── */
+  .sidebar { width:240px; min-width:240px; background:var(--bg2); border-right:1px solid var(--border); display:flex; flex-direction:column; }
+  .sidebar-logo { padding:20px 20px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .logo-icon { width:34px; height:34px; background:linear-gradient(135deg,var(--accent),var(--accent3)); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:var(--glow); flex-shrink:0; }
+  .logo-text { font-size:14px; font-weight:600; line-height:1.2; }
+  .logo-sub { font-size:10px; color:var(--text3); font-weight:400; letter-spacing:.05em; }
+  .sidebar-nav { flex:1; padding:12px 8px; overflow-y:auto; display:flex; flex-direction:column; gap:2px; }
+  .nav-section { padding:6px 8px 4px; font-size:10px; color:var(--text3); letter-spacing:.08em; text-transform:uppercase; font-weight:600; margin-top:4px; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text2); transition:all .2s; user-select:none; }
+  .nav-item:hover { background:var(--bg3); color:var(--text); }
+  .nav-item.active { background:linear-gradient(135deg,rgba(124,106,247,.2),rgba(94,77,224,.1)); color:var(--accent2); border:1px solid rgba(124,106,247,.3); }
+  .nav-item .icon { font-size:15px; width:18px; text-align:center; }
+  .badge { margin-left:auto; background:var(--accent3); color:#fff; font-size:9px; padding:1px 5px; border-radius:20px; font-weight:600; }
+  .status-dot { width:6px; height:6px; border-radius:50%; margin-left:auto; flex-shrink:0; }
+  .dot-green { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .dot-red { background:var(--red); }
+  .dot-yellow { background:var(--yellow); box-shadow:0 0 6px var(--yellow); }
+  .sidebar-bottom { padding:12px 8px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:2px; }
+
+  /* ── Main ── */
+  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+  .topbar { display:flex; align-items:center; padding:0 24px; height:56px; border-bottom:1px solid var(--border); background:var(--bg2); gap:12px; }
+  .page-title { font-size:15px; font-weight:600; }
+  .page-sub { font-size:12px; color:var(--text3); margin-left:4px; }
+  .topbar-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+
+  /* ── Buttons ── */
+  .btn { padding:7px 14px; border-radius:8px; border:none; cursor:pointer; font-size:12px; font-family:'Sora',sans-serif; font-weight:500; transition:all .2s; display:inline-flex; align-items:center; gap:6px; }
+  .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent3)); color:#fff; box-shadow:0 2px 12px rgba(124,106,247,.3); }
+  .btn-primary:hover { transform:translateY(-1px); box-shadow:0 4px 20px rgba(124,106,247,.4); }
+  .btn-ghost { background:var(--bg3); color:var(--text2); border:1px solid var(--border); }
+  .btn-ghost:hover { border-color:var(--border2); color:var(--text); }
+  .btn-danger { background:rgba(240,106,106,.15); color:var(--red); border:1px solid rgba(240,106,106,.3); }
+  .btn-danger:hover { background:rgba(240,106,106,.25); }
+  .btn-success { background:rgba(67,217,142,.15); color:var(--green); border:1px solid rgba(67,217,142,.3); }
+  .btn-success:hover { background:rgba(67,217,142,.25); }
+  .btn-warning { background:rgba(245,200,66,.15); color:var(--yellow); border:1px solid rgba(245,200,66,.3); }
+
+  /* ── Pages ── */
+  .page { display:none; flex:1; overflow:auto; padding:24px; }
+  .page.active { display:flex; flex-direction:column; gap:20px; }
+
+  /* ── Cards ── */
+  .card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:20px; }
+  .card-title { font-size:13px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.06em; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+
+  /* ── Stats ── */
+  .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px 18px; position:relative; overflow:hidden; }
+  .stat-card::before { content:''; position:absolute; top:0; right:0; width:60px; height:60px; background:radial-gradient(circle,rgba(124,106,247,.1),transparent); border-radius:50%; }
+  .stat-label { font-size:11px; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:8px; }
+  .stat-value { font-size:26px; font-weight:700; font-family:'JetBrains Mono',monospace; line-height:1; }
+  .stat-change { font-size:11px; margin-top:6px; color:var(--text3); }
+  .stat-change .up { color:var(--green); }
+
+  /* ── Input ── */
+  .input-group { display:flex; flex-direction:column; gap:6px; }
+  .input-label { font-size:12px; color:var(--text2); font-weight:500; }
+  .input { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-family:'Sora',sans-serif; font-size:13px; outline:none; transition:border-color .2s; width:100%; }
+  .input:focus { border-color:var(--accent); }
+  .input::placeholder { color:var(--text3); }
+  .input-mono { font-family:'JetBrains Mono',monospace; font-size:12px; }
+  select.input { cursor:pointer; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235d6380' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:28px; }
+  .help-text { font-size:11px; color:var(--text3); margin-top:4px; line-height:1.5; }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; padding:9px 12px; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text3); font-weight:600; border-bottom:1px solid var(--border); white-space:nowrap; }
+  td { padding:10px 12px; border-bottom:1px solid var(--border); color:var(--text2); vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,.02); }
+  .tag { display:inline-block; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; }
+  .tag-green { background:rgba(67,217,142,.15); color:var(--green); }
+  .tag-red { background:rgba(240,106,106,.15); color:var(--red); }
+  .tag-yellow { background:rgba(245,200,66,.15); color:var(--yellow); }
+  .tag-purple { background:rgba(124,106,247,.15); color:var(--accent2); }
+  .tag-gray { background:rgba(93,99,128,.2); color:var(--text3); }
+
+  /* ── Cookie List ── */
+  .cookie-list { display:flex; flex-direction:column; gap:10px; }
+  .cookie-item { background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:12px; transition:border-color .2s; }
+  .cookie-item:hover { border-color:var(--border2); }
+  .cookie-item.active { border-color:rgba(124,106,247,.4); background:rgba(124,106,247,.05); }
+  .cookie-status { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .cookie-name { font-size:13px; font-weight:600; }
+  .cookie-desc { font-size:11px; color:var(--text3); margin-top:2px; }
+  .cookie-meta { font-size:10px; color:var(--text3); margin-top:2px; font-family:'JetBrains Mono',monospace; }
+  .cookie-value { margin-left:auto; font-size:11px; font-family:'JetBrains Mono',monospace; color:var(--text2); background:var(--bg); padding:3px 8px; border-radius:5px; border:1px solid var(--border); max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cookie-actions { display:flex; gap:6px; margin-left:12px; }
+
+  /* ── Chat ── */
+  .chat-layout { display:flex; gap:16px; flex:1; min-height:0; }
+  .chat-sidebar-panel { width:260px; min-width:260px; display:flex; flex-direction:column; gap:14px; }
+  .chat-main-panel { flex:1; display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .conversation-list { display:flex; flex-direction:column; gap:4px; overflow-y:auto; max-height:320px; }
+  .conv-item { padding:10px 12px; border-radius:8px; cursor:pointer; font-size:12px; color:var(--text2); border:1px solid transparent; transition:all .2s; }
+  .conv-item:hover { background:var(--bg3); color:var(--text); }
+  .conv-item.active { background:rgba(124,106,247,.1); color:var(--accent2); border-color:rgba(124,106,247,.3); }
+  .conv-title { font-weight:500; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .conv-time { font-size:10px; color:var(--text3); }
+  .messages-area { flex:1; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; min-height:300px; max-height:400px; }
+  .msg { display:flex; gap:10px; animation:fadeUp .25s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .msg-avatar { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+  .msg-user .msg-avatar { background:rgba(124,106,247,.2); }
+  .msg-assistant .msg-avatar { background:rgba(67,217,142,.2); }
+  .msg-body { flex:1; background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:10px 14px; font-size:13px; line-height:1.6; }
+  .msg-user .msg-body { background:rgba(124,106,247,.08); border-color:rgba(124,106,247,.2); }
+  .msg-time { font-size:10px; color:var(--text3); margin-top:4px; }
+  .typing-indicator { display:flex; gap:4px; align-items:center; padding:4px 0; }
+  .typing-dot { width:6px; height:6px; background:var(--accent2); border-radius:50%; animation:bounce 1.2s infinite; }
+  .typing-dot:nth-child(2){animation-delay:.2s} .typing-dot:nth-child(3){animation-delay:.4s}
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+  .chat-input-area { display:flex; gap:10px; align-items:flex-end; }
+  .chat-input { flex:1; background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; color:var(--text); font-family:'Sora',sans-serif; font-size:13px; outline:none; resize:none; min-height:44px; max-height:120px; transition:border-color .2s; line-height:1.5; }
+  .chat-input:focus { border-color:var(--accent); }
+  .chat-input::placeholder { color:var(--text3); }
+
+  /* ── Account Cards ── */
+  .account-card { background:var(--bg3); border:1px solid var(--border); border-radius:12px; padding:16px; transition:all .2s; }
+  .account-card:hover { border-color:var(--border2); }
+  .account-card.active { border-color:rgba(124,106,247,.4); background:rgba(124,106,247,.05); }
+  .account-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .account-avatar { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,var(--accent3),var(--accent)); display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; font-weight:700; flex-shrink:0; }
+  .account-name { font-size:13px; font-weight:600; }
+  .account-email { font-size:11px; color:var(--text3); }
+  .account-meta { display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* ── OpenAI Compat Panel ── */
+  .code-block { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--green); overflow-x:auto; line-height:1.7; white-space:pre; }
+
+  /* ── Auth ── */
+  .auth-methods { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+  .auth-method-card { background:var(--bg3); border:1px solid var(--border); border-radius:12px; padding:16px; cursor:pointer; transition:all .2s; position:relative; }
+  .auth-method-card:hover { border-color:var(--border2); }
+  .auth-method-card.selected { border-color:var(--accent); background:rgba(124,106,247,.08); }
+  .auth-method-icon { font-size:24px; margin-bottom:8px; }
+  .auth-method-name { font-size:13px; font-weight:600; margin-bottom:4px; }
+  .auth-method-desc { font-size:11px; color:var(--text3); }
+  .auth-method-check { position:absolute; top:10px; right:10px; width:16px; height:16px; border-radius:50%; border:2px solid var(--border2); transition:all .2s; }
+  .auth-method-card.selected .auth-method-check { background:var(--accent); border-color:var(--accent); }
+
+  /* ── Toast ── */
+  .toast-container { position:fixed; bottom:20px; right:20px; display:flex; flex-direction:column; gap:8px; z-index:9999; }
+  .toast { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px 16px; font-size:13px; display:flex; align-items:center; gap:10px; box-shadow:0 4px 20px rgba(0,0,0,.4); animation:slideIn .3s ease; min-width:240px; }
+  @keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+  .toast.success { border-left:3px solid var(--green); }
+  .toast.error { border-left:3px solid var(--red); }
+  .toast.info { border-left:3px solid var(--accent); }
+
+  /* ── Log ── */
+  .log-entry { display:flex; align-items:flex-start; gap:10px; padding:8px 10px; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:11px; border:1px solid var(--border); background:var(--bg3); margin-bottom:6px; }
+  .log-method { padding:1px 6px; border-radius:4px; font-size:10px; font-weight:700; flex-shrink:0; }
+  .method-post { background:rgba(124,106,247,.2); color:var(--accent2); }
+  .method-get { background:rgba(67,217,142,.2); color:var(--green); }
+  .method-sse { background:rgba(245,200,66,.2); color:var(--yellow); }
+
+  /* ── Modal ── */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(4px); z-index:1000; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .2s; }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
+  .modal { background:var(--bg2); border:1px solid var(--border2); border-radius:16px; padding:24px; width:520px; max-width:90vw; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.5); transform:translateY(10px); transition:transform .2s; }
+  .modal-overlay.open .modal { transform:translateY(0); }
+  .modal-title { font-size:16px; font-weight:700; margin-bottom:20px; display:flex; align-items:center; gap:10px; }
+  .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1px solid var(--border); }
+
+  /* ── Misc ── */
+  .info-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; background:var(--bg3); border:1px solid var(--border); border-radius:20px; font-size:11px; color:var(--text2); }
+  .row { display:flex; gap:14px; }
+  .row > * { flex:1; }
+  .section-divider { display:flex; align-items:center; gap:12px; margin:4px 0; color:var(--text3); font-size:11px; }
+  .section-divider::before,.section-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+  .config-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:2px; }
+  .progress-bar { height:4px; background:var(--bg3); border-radius:2px; overflow:hidden; margin-top:8px; }
+  .progress-fill { height:100%; border-radius:2px; background:linear-gradient(90deg,var(--accent3),var(--accent)); transition:width .5s ease; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">✦</div>
+    <div>
+      <div class="logo-text">Claude Manager</div>
+      <div class="logo-sub">第三方客户端 v2.0</div>
+    </div>
+  </div>
+
+  <div class="sidebar-nav">
+    <div class="nav-section">主要功能</div>
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="icon">⬡</span> 概览仪表盘
+    </div>
+    <div class="nav-item" onclick="showPage('chat')">
+      <span class="icon">💬</span> 对话管理
+      <span class="badge" id="conv-count">0</span>
+    </div>
+    <div class="nav-item" onclick="showPage('auth')">
+      <span class="icon">🔐</span> 认证配置
+      <span class="status-dot dot-yellow" id="auth-dot"></span>
+    </div>
+
+    <div class="nav-section">多账号 · 新功能</div>
+    <div class="nav-item" onclick="showPage('accounts')">
+      <span class="icon">👥</span> 账号管理
+      <span class="badge" id="account-count">1</span>
+    </div>
+    <div class="nav-item" onclick="showPage('models')">
+      <span class="icon">🧠</span> 模型配置
+    </div>
+    <div class="nav-item" onclick="showPage('openai')">
+      <span class="icon">🔌</span> OpenAI 兼容层
+      <span class="tag tag-green" style="margin-left:auto;font-size:9px;padding:1px 5px;">NEW</span>
+    </div>
+
+    <div class="nav-section">高级配置</div>
+    <div class="nav-item" onclick="showPage('cookies')">
+      <span class="icon">🍪</span> Cookie 管理
+    </div>
+    <div class="nav-item" onclick="showPage('refresh')">
+      <span class="icon">🔄</span> Cookie 刷新
+    </div>
+    <div class="nav-item" onclick="showPage('requests')">
+      <span class="icon">📡</span> 请求调试
+    </div>
+    <div class="nav-item" onclick="showPage('config')">
+      <span class="icon">⚙️</span> 参数配置
+    </div>
+    <div class="nav-item" onclick="showPage('logs')">
+      <span class="icon">📋</span> API 日志
+    </div>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="nav-item" onclick="showPage('deploy')">
+      <span class="icon">🚀</span> 部署说明
+    </div>
+    <div class="nav-item" onclick="showToast('Claude Manager v2.0 · OpenAI兼容 · 多账号轮询', 'info')">
+      <span class="icon">ℹ️</span> v2.0.0
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <span class="page-title" id="page-title">概览仪表盘</span>
+    <span class="page-sub" id="page-sub">Claude AI 第三方客户端管理</span>
+    <div class="topbar-right">
+      <div class="info-pill" id="conn-status">
+        <span class="status-dot dot-yellow"></span> 未连接
+      </div>
+      <div class="info-pill" id="active-account-pill" style="display:none;">
+        <span>👤</span> <span id="active-account-name">默认账号</span>
+      </div>
+      <button class="btn btn-primary" onclick="testConnection()">⚡ 测试连接</button>
+    </div>
+  </div>
+
+  <!-- ══ DASHBOARD ══ -->
+  <div id="page-dashboard" class="page active">
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">活跃账号</div>
+        <div class="stat-value" style="color:var(--accent2);" id="stat-accounts">1</div>
+        <div class="stat-change">共 <span id="stat-total-accounts">1</span> 个账号</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">本地对话</div>
+        <div class="stat-value" style="color:var(--green);" id="stat-convs">0</div>
+        <div class="stat-change">历史会话总数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">可用模型</div>
+        <div class="stat-value" style="color:var(--yellow);" id="stat-models">5</div>
+        <div class="stat-change">已启用 <span id="stat-active-models">5</span> 个</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">认证状态</div>
+        <div class="stat-value" style="color:var(--red);font-size:18px;" id="stat-auth">未配置</div>
+        <div class="stat-change" id="stat-auth-sub">需要设置 Cookie</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card">
+        <div class="card-title">🚀 快速开始</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(240,106,106,.2);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">1</div>
+            <div><div style="font-size:12px;font-weight:600;">配置认证信息</div><div style="font-size:11px;color:var(--text3);">前往「认证配置」注入 sessionKey</div></div>
+            <button class="btn btn-ghost" style="margin-left:auto;" onclick="showPage('auth')">配置 →</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(245,200,66,.2);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">2</div>
+            <div><div style="font-size:12px;font-weight:600;">管理多账号</div><div style="font-size:11px;color:var(--text3);">添加多个 Claude 账号，启用轮询</div></div>
+            <button class="btn btn-ghost" style="margin-left:auto;" onclick="showPage('accounts')">管理 →</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(124,106,247,.2);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">3</div>
+            <div><div style="font-size:12px;font-weight:600;">接入 OpenAI 客户端</div><div style="font-size:11px;color:var(--text3);">使用 /v1 接口兼容任意 OpenAI 客户端</div></div>
+            <button class="btn btn-ghost" style="margin-left:auto;" onclick="showPage('openai')">查看 →</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+            <div style="width:28px;height:28px;border-radius:50%;background:rgba(67,217,142,.2);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">4</div>
+            <div><div style="font-size:12px;font-weight:600;">开始对话</div><div style="font-size:11px;color:var(--text3);">前往「对话管理」使用 Claude</div></div>
+            <button class="btn btn-success" style="margin-left:auto;" onclick="showPage('chat')">开始 →</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎛️ v2.0 新功能概览</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>功能</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td>多账号管理与轮询</td><td><span class="tag tag-green">✓ 已支持</span></td></tr>
+              <tr><td>加权 / 最少失败轮询</td><td><span class="tag tag-green">✓ 已支持</span></td></tr>
+              <tr><td>OpenAI 兼容 API</td><td><span class="tag tag-green">✓ /v1</span></td></tr>
+              <tr><td>模型动态切换</td><td><span class="tag tag-green">✓ 已支持</span></td></tr>
+              <tr><td>Cookie 自动刷新</td><td><span class="tag tag-yellow">可选配置</span></td></tr>
+              <tr><td>Nginx 反向代理</td><td><span class="tag tag-green">✓ 已内置</span></td></tr>
+              <tr><td>Docker 一键部署</td><td><span class="tag tag-green">✓ 已支持</span></td></tr>
+              <tr><td>SSE 流式响应</td><td><span class="tag tag-green">✓ 已支持</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 账号健康状态</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>账号</th><th>邮箱</th><th>Cookie</th><th>Session</th><th>权重</th><th>失败次数</th><th>最后使用</th><th>操作</th></tr></thead>
+          <tbody id="dashboard-accounts-tbody">
+            <tr><td colspan="8" style="text-align:center;color:var(--text3);">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ACCOUNTS ══ -->
+  <div id="page-accounts" class="page">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:18px;font-weight:700;">👥 多账号管理</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px;">管理多个 Claude 账号，自动轮询分配请求</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <select class="input" id="poll-strategy-select" onchange="setPollStrategy()" style="width:160px;">
+          <option value="round_robin">🔄 轮询（Round Robin）</option>
+          <option value="weighted">⚖️ 加权（Weighted）</option>
+          <option value="least_fail">🛡️ 最少失败</option>
+        </select>
+        <button class="btn btn-primary" onclick="openAddAccountModal()">＋ 添加账号</button>
+      </div>
+    </div>
+
+    <div id="accounts-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">
+      <!-- populated by JS -->
+    </div>
+
+    <!-- Smart Import Card -->
+    <div class="card" id="smart-import-card">
+      <div class="card-title">
+        🧠 智能 Cookie 导入
+        <span style="margin-left:8px;font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;padding:2px 8px;background:rgba(67,217,142,.15);color:var(--green);border-radius:20px;">支持 DevTools 表格格式</span>
+      </div>
+
+      <!-- Format guide tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <div class="format-tab active" id="tab-devtools" onclick="switchFormatTab('devtools')"
+          style="flex:1;padding:10px 14px;border-radius:10px;border:1px solid rgba(124,106,247,.4);background:rgba(124,106,247,.08);cursor:pointer;transition:all .2s;">
+          <div style="font-size:12px;font-weight:600;color:var(--accent2);margin-bottom:4px;">📋 DevTools 表格格式（推荐）</div>
+          <div style="font-size:11px;color:var(--text3);">直接在 Application → Cookies 页面全选复制，无需任何处理</div>
+        </div>
+        <div class="format-tab" id="tab-standard" onclick="switchFormatTab('standard')"
+          style="flex:1;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;transition:all .2s;">
+          <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;">📝 标准格式</div>
+          <div style="font-size:11px;color:var(--text3);">name=value; name2=value2 格式（Network 面板 Cookie 请求头）</div>
+        </div>
+      </div>
+
+      <!-- How to copy guide -->
+      <div id="devtools-guide" style="padding:12px;background:rgba(67,217,142,.05);border:1px solid rgba(67,217,142,.15);border-radius:8px;margin-bottom:14px;font-size:12px;">
+        <div style="font-weight:600;color:var(--green);margin-bottom:8px;">📖 DevTools 复制步骤：</div>
+        <div style="display:flex;gap:16px;color:var(--text2);">
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="background:var(--accent3);color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">1</span>
+            <span>打开 claude.ai，按 <kbd style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:11px;">F12</kbd></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="background:var(--accent3);color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">2</span>
+            <span>Application → Cookies → <code style="font-size:11px;background:var(--bg3);padding:1px 4px;border-radius:3px;">https://claude.ai</code></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="background:var(--accent3);color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">3</span>
+            <span>点击任意行 → <kbd style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:11px;">Ctrl+A</kbd> 全选 → <kbd style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:11px;">Ctrl+C</kbd> 复制</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="background:var(--accent3);color:#fff;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;margin-top:1px;">4</span>
+            <span>粘贴到下方文本框，点击「智能解析」</span>
+          </div>
+        </div>
+      </div>
+      <div id="standard-guide" style="display:none;padding:12px;background:rgba(124,106,247,.05);border:1px solid rgba(124,106,247,.15);border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--text2);">
+        📖 从 DevTools → Network 选任意请求 → Headers → <strong>Cookie</strong> 请求头，复制其值粘贴到下方。
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <div class="input-group" style="flex:1;">
+              <div class="input-label">目标账号</div>
+              <select class="input" id="import-account-select"></select>
+            </div>
+            <div style="padding-top:22px;">
+              <div class="info-pill" id="import-format-badge" style="font-size:10px;">
+                <span>🔍</span> 等待输入
+              </div>
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="input-label">粘贴 Cookie 数据（自动识别格式）</div>
+            <textarea class="input input-mono" id="import-cookie-str" rows="6"
+              placeholder="直接粘贴 DevTools Application 面板全选复制的内容，或标准 name=value; 格式..."
+              oninput="onImportInputChange(this.value)"
+              style="font-size:11px;line-height:1.5;"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="smartImportCookie()">🧠 智能解析并导入</button>
+            <button class="btn btn-ghost" onclick="previewImport()">👁 预览解析结果</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('import-cookie-str').value='';updateImportBadge('')">🗑 清空</button>
+            <button class="btn btn-ghost" onclick="testAllAccounts()">⚡ 批量测试所有账号</button>
+          </div>
+        </div>
+
+        <!-- Live preview panel -->
+        <div style="width:320px;min-width:300px;">
+          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:8px;">解析预览</div>
+          <div id="import-preview-panel" style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;min-height:180px;max-height:360px;overflow-y:auto;">
+            <div style="color:var(--text3);font-size:12px;text-align:center;padding:20px 0;">粘贴数据后自动预览</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ MODELS ══ -->
+  <div id="page-models" class="page">
+    <div class="card">
+      <div class="card-title">🧠 模型管理
+        <button class="btn btn-ghost" style="margin-left:auto;" onclick="loadModels()">🔄 刷新</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Model ID</th><th>显示名称</th><th>描述</th><th>上下文长度</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="models-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text3);">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ 默认模型设置</div>
+      <div class="row" style="max-width:600px;">
+        <div class="input-group">
+          <div class="input-label">默认使用模型</div>
+          <select class="input" id="default-model-select" onchange="setDefaultModel()"></select>
+          <div class="help-text">此模型将作为对话和 OpenAI 兼容层的默认选择</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ OPENAI COMPAT ══ -->
+  <div id="page-openai" class="page">
+    <div class="card">
+      <div class="card-title">🔌 OpenAI 兼容 API 接入说明</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:12px;">接口信息</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="input-group">
+              <div class="input-label">Base URL</div>
+              <div class="input input-mono" style="background:var(--bg);cursor:text;" id="openai-base-url">http://localhost:8765/v1</div>
+            </div>
+            <div class="input-group">
+              <div class="input-label">API Key（可自定义）</div>
+              <div style="display:flex;gap:8px;">
+                <input class="input input-mono" id="openai-api-key" value="sk-claude-proxy-default" />
+                <button class="btn btn-ghost" onclick="saveApiKey()">保存</button>
+              </div>
+              <div class="help-text">在各客户端「API Key」字段填入此值</div>
+            </div>
+            <div class="input-group">
+              <div class="input-label">身份验证</div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
+                  <input type="checkbox" id="require-auth-toggle" checked style="accent-color:var(--accent);" onchange="toggleRequireAuth()">
+                  启用 API Key 验证
+                </label>
+              </div>
+              <div class="help-text">关闭后任意客户端无需 Key 即可访问（内网部署时可关闭）</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:12px;">支持的接口</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>接口</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td><code>GET /v1/models</code></td><td>获取可用模型列表</td></tr>
+                <tr><td><code>POST /v1/chat/completions</code></td><td>对话补全（流式+非流式）</td></tr>
+                <tr><td><code>GET /v1/models/{id}</code></td><td>获取单个模型信息</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card">
+        <div class="card-title">Python 接入示例</div>
+        <div class="code-block" id="python-example">from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:8765/v1",
+    api_key="sk-claude-proxy-default",
+)
+
+response = client.chat.completions.create(
+    model="claude-sonnet-4-6",
+    messages=[
+        {"role": "system", "content": "你是一个助手"},
+        {"role": "user", "content": "你好"},
+    ],
+    stream=True,
+)
+
+for chunk in response:
+    print(chunk.choices[0].delta.content, end="")</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">客户端配置指南</div>
+        <div style="display:flex;flex-direction:column;gap:12px;font-size:13px;">
+          <div style="padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-weight:600;margin-bottom:6px;">ChatGPT Next Web / LobeChat</div>
+            <div style="font-size:12px;color:var(--text2);">设置 → API → 自定义接口地址</div>
+            <div class="code-block" style="margin-top:8px;font-size:11px;">接口地址: http://your-server:8765/v1
+API Key: sk-claude-proxy-default</div>
+          </div>
+          <div style="padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-weight:600;margin-bottom:6px;">OpenWebUI / Cursor / Continue.dev</div>
+            <div class="code-block" style="margin-top:8px;font-size:11px;">BASE_URL=http://your-server:8765/v1
+OPENAI_API_KEY=sk-claude-proxy-default</div>
+          </div>
+          <div style="padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+            <div style="font-weight:600;margin-bottom:6px;">curl 测试</div>
+            <div class="code-block" style="margin-top:8px;font-size:11px;">curl http://localhost:8765/v1/chat/completions \
+  -H "Authorization: Bearer sk-claude-proxy-default" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"hi"}],"stream":false}'</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🧪 在线测试 OpenAI 兼容接口</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="input-group">
+            <div class="input-label">选择模型</div>
+            <select class="input" id="openai-test-model"></select>
+          </div>
+          <div class="input-group">
+            <div class="input-label">消息</div>
+            <textarea class="input" id="openai-test-msg" rows="3" placeholder="输入测试消息...">你好，请简单介绍一下你自己</textarea>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" id="openai-test-stream" checked style="accent-color:var(--accent);">流式模式
+            </label>
+          </div>
+          <button class="btn btn-primary" onclick="testOpenAI()">▶ 发送测试请求</button>
+        </div>
+        <div>
+          <div class="input-group">
+            <div class="input-label">响应</div>
+            <textarea class="input input-mono" id="openai-test-resp" rows="10" readonly placeholder="响应将显示在这里..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ COOKIE REFRESH ══ -->
+  <div id="page-refresh" class="page">
+    <div class="card">
+      <div class="card-title">🔄 Cookie 自动刷新配置</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="padding:12px;background:rgba(245,200,66,.08);border:1px solid rgba(245,200,66,.2);border-radius:8px;font-size:12px;color:var(--yellow);">
+            ⚠️ Cookie 自动刷新需要安装 Playwright。cf_clearance 每隔数小时失效，建议定期手动更新或启用自动刷新。
+          </div>
+          <div class="input-group">
+            <div class="input-label">刷新间隔（小时）</div>
+            <input class="input" type="number" id="refresh-interval" value="6" min="1" max="24" />
+            <div class="help-text">建议设置为 4-8 小时，cf_clearance 约每 6 小时失效</div>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-success" onclick="startAutoRefresh()">▶ 启动自动刷新</button>
+            <button class="btn btn-danger" onclick="stopAutoRefresh()">■ 停止</button>
+            <div class="info-pill" id="refresh-status"><span class="status-dot dot-yellow"></span> 未启动</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="font-size:13px;font-weight:600;">手动刷新指定账号</div>
+          <div class="input-group">
+            <div class="input-label">选择账号</div>
+            <select class="input" id="refresh-account-select"></select>
+          </div>
+          <button class="btn btn-primary" onclick="manualRefreshAccount()">🔄 立即刷新此账号</button>
+          <div class="help-text">将打开 Chromium 浏览器窗口，请在 120 秒内完成 Google 登录。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 刷新日志
+        <button class="btn btn-ghost" style="margin-left:auto;" onclick="loadRefreshLogs()">🔄 刷新</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>账号ID</th><th>方式</th><th>结果</th><th>更新数量</th><th>错误信息</th><th>时间</th></tr></thead>
+          <tbody id="refresh-logs-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text3);">暂无刷新记录</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ AUTH ══ -->
+  <div id="page-auth" class="page">
+    <div class="card">
+      <div class="card-title">🔐 认证方式选择</div>
+      <div class="auth-methods">
+        <div class="auth-method-card selected" onclick="selectAuthMethod(this,'cookie')" id="method-cookie">
+          <div class="auth-method-check"></div>
+          <div class="auth-method-icon">🍪</div>
+          <div class="auth-method-name">Cookie 直接注入</div>
+          <div class="auth-method-desc">从浏览器 DevTools 获取 Cookie，直接粘贴。最简单的方式。</div>
+        </div>
+        <div class="auth-method-card" onclick="selectAuthMethod(this,'oauth')" id="method-oauth">
+          <div class="auth-method-check"></div>
+          <div class="auth-method-icon">🔑</div>
+          <div class="auth-method-name">OAuth 代理登录</div>
+          <div class="auth-method-desc">通过 mitmproxy 拦截 OAuth 流程，自动捕获登录后的凭证。</div>
+        </div>
+      </div>
+      <div class="input-group" style="max-width:300px;">
+        <div class="input-label">注入到哪个账号</div>
+        <select class="input" id="auth-account-select"></select>
+      </div>
+    </div>
+
+    <div class="card" id="cookie-method-panel">
+      <div class="card-title">🍪 Cookie 认证配置</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="padding:12px;background:rgba(245,200,66,.08);border:1px solid rgba(245,200,66,.2);border-radius:8px;font-size:12px;color:var(--yellow);">
+          ⚠️ 获取方式：在 claude.ai 打开 Chrome DevTools → Application → Cookies → claude.ai → 复制相应值
+        </div>
+        <div class="input-group">
+          <div class="input-label">⚠️ sessionKey（核心凭证）</div>
+          <input class="input input-mono" type="password" id="sessionKey" placeholder="sk-ant-sid02-XXXXXXXXXXXXXXXX..." />
+          <div class="help-text">格式：sk-ant-sid02- 开头。所有请求通过此令牌验证，请妥善保管。</div>
+        </div>
+        <div class="row">
+          <div class="input-group">
+            <div class="input-label">anthropic-device-id</div>
+            <input class="input input-mono" type="text" id="deviceId" placeholder="334dd..." />
+          </div>
+          <div class="input-group">
+            <div class="input-label">__ssid（Session ID）</div>
+            <input class="input input-mono" type="text" id="ssid" placeholder="84862..." />
+          </div>
+        </div>
+        <div class="row">
+          <div class="input-group">
+            <div class="input-label">cf_clearance（Cloudflare）</div>
+            <input class="input input-mono" type="text" id="cfClearance" placeholder="3dFO..." />
+            <div class="help-text">有效期数小时，需定期更新</div>
+          </div>
+          <div class="input-group">
+            <div class="input-label">__cf_bm（Bot Management）</div>
+            <input class="input input-mono" type="text" id="cfBm" placeholder="C_da..." />
+            <div class="help-text">30 分钟刷新一次</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="input-group">
+            <div class="input-label">lastActiveOrg（组织ID）</div>
+            <input class="input input-mono" type="text" id="lastActiveOrg" placeholder="c55a16..." />
+            <div class="help-text">填写后可自动回写到账号配置</div>
+          </div>
+          <div class="input-group">
+            <div class="input-label">routingHint</div>
+            <input class="input input-mono" type="text" id="routingHint" placeholder="sk-ant-..." />
+          </div>
+        </div>
+        <div class="section-divider">智能批量导入（支持 DevTools 表格格式）</div>
+        <div style="padding:10px 12px;background:rgba(67,217,142,.05);border:1px solid rgba(67,217,142,.15);border-radius:8px;font-size:11px;color:var(--text2);">
+          💡 <strong style="color:var(--green);">DevTools 表格格式</strong>：打开 claude.ai → F12 → Application → Cookies → <code>https://claude.ai</code> → 点击表格内 → Ctrl+A 全选 → Ctrl+C 复制，直接粘贴到下方即可。
+        </div>
+        <div class="input-group">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="input-label">Cookie 数据（自动识别 DevTools 格式 / 标准格式）</div>
+            <div class="info-pill" id="auth-format-badge" style="font-size:10px;"><span>🔍</span> 等待输入</div>
+          </div>
+          <textarea class="input input-mono" id="cookieBatch" rows="5"
+            placeholder="粘贴 DevTools 表格格式（直接全选复制）或标准格式 sessionKey=...; anthropic-device-id=...; ..."
+            oninput="onAuthBatchChange(this.value)"
+            style="font-size:11px;line-height:1.5;"></textarea>
+        </div>
+        <!-- Auth page mini preview -->
+        <div id="auth-parse-preview" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;max-height:180px;overflow-y:auto;"></div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="parseCookieBatch()">🧠 智能解析填充</button>
+          <button class="btn btn-primary" onclick="saveCookies()">💾 保存到账号</button>
+          <button class="btn btn-success" onclick="testConnection()">⚡ 测试连接</button>
+          <button class="btn btn-danger" onclick="clearCookies()">🗑️ 清除</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="oauth-method-panel" style="display:none;">
+      <div class="card-title">🔑 mitmproxy 代理登录</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="padding:12px;background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.2);border-radius:8px;font-size:12px;color:var(--accent2);">
+          ℹ️ 需要先安装 mitmproxy：<code>pip install mitmproxy</code>
+        </div>
+        <div class="input-group">
+          <div class="input-label">步骤说明</div>
+          <div class="code-block">1. 启动代理: mitmdump -s proxy_capture.py --listen-port 8080
+2. 浏览器代理设置为: 127.0.0.1:8080
+3. 安装证书: 访问 http://mitm.it 下载并信任
+4. 访问 claude.ai 完成 Google 登录
+5. Cookie 自动保存到 cookies.json
+6. 点击下方按钮导入</div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-primary" onclick="loadFromProxy()">📡 从 cookies.json 导入</button>
+          <button class="btn btn-ghost" onclick="browserAutoLogin()">🌐 Playwright 自动登录</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ COOKIES ══ -->
+  <div id="page-cookies" class="page">
+    <div style="display:flex;gap:16px;align-items:flex-start;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
+        <div class="card">
+          <div class="card-title" style="margin-bottom:12px;">
+            🍪 Cookie 字段管理
+            <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+              <select class="input" id="cookie-account-select" onchange="loadCookiesForAccount()" style="width:160px;"></select>
+              <button class="btn btn-ghost" onclick="loadCookiesForAccount()">🔄 刷新</button>
+            </div>
+          </div>
+          <div class="cookie-list" id="cookie-list"></div>
+        </div>
+      </div>
+      <div style="width:280px;display:flex;flex-direction:column;gap:14px;">
+        <div class="card">
+          <div class="card-title">📊 Cookie 统计</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--text2);">🔐 身份认证类</span><span style="color:var(--accent2);font-weight:600;">3</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--text2);">🛡️ Cloudflare 安全类</span><span style="color:var(--yellow);font-weight:600;">3</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--text2);">⚙️ 功能偏好类</span><span style="color:var(--green);font-weight:600;">5</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--text2);">📊 第三方追踪类</span><span style="color:var(--text3);font-weight:600;">5</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">⚠️ 安全提醒</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.7;">
+            <p style="color:var(--red);margin-bottom:8px;font-weight:600;">最高优先保护：</p>
+            <p>• <code>sessionKey</code>：账号完整控制权</p>
+            <p>• <code>cf_clearance</code>：CF 验证令牌</p>
+            <br>
+            <p style="color:var(--yellow);margin-bottom:8px;font-weight:600;">定期更新：</p>
+            <p>• <code>__cf_bm</code>：30分钟有效</p>
+            <p>• <code>cf_clearance</code>：数小时有效</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CHAT ══ -->
+  <div id="page-chat" class="page">
+    <div class="chat-layout">
+      <div class="chat-sidebar-panel">
+        <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column;">
+          <div class="card-title" style="margin-bottom:10px;">
+            💬 会话列表
+            <button class="btn btn-primary" style="margin-left:auto;padding:4px 10px;font-size:11px;" onclick="newConversation()">+ 新建</button>
+          </div>
+          <div class="conversation-list" id="conv-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">🔧 对话设置</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="input-group">
+              <div class="input-label">模型</div>
+              <select class="input" id="model-select"></select>
+            </div>
+            <div class="input-group">
+              <div class="input-label">使用账号</div>
+              <select class="input" id="chat-account-select">
+                <option value="">自动轮询</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <div class="input-label">时区</div>
+              <input class="input" type="text" id="timezone" value="Asia/Shanghai" />
+            </div>
+            <div class="input-group">
+              <div class="input-label">语言区域</div>
+              <input class="input" type="text" id="locale" value="zh-CN" />
+            </div>
+            <div class="input-group">
+              <div class="input-label">工具</div>
+              <select class="input" id="tools-select">
+                <option value="none">不启用工具</option>
+                <option value="web_search" selected>web_search_v0</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-main-panel">
+        <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+          <div class="card-title" id="current-conv-title">
+            📝 新建对话
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;" id="parent-uuid-display">parent_uuid: 00000000-…</span>
+          </div>
+          <div class="messages-area" id="messages-area">
+            <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">💬 开始一段新对话。发送消息后将通过 /completion SSE 接口流式接收回复。</div>
+          </div>
+          <div class="chat-input-area" style="margin-top:12px;">
+            <div style="display:flex;flex-direction:column;gap:6px;flex:1;">
+              <textarea class="chat-input" id="chat-input" placeholder="输入消息... (Ctrl+Enter 发送)" rows="2" onkeydown="handleChatKey(event)"></textarea>
+              <div style="display:flex;gap:8px;font-size:11px;color:var(--text3);">
+                <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="stream-mode" checked style="accent-color:var(--accent);" /> SSE 流式模式</label>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <button class="btn btn-primary" style="height:44px;padding:0 20px;" onclick="sendMessage()">发送 ⬆</button>
+              <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="clearMessages()">清空</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ REQUESTS ══ -->
+  <div id="page-requests" class="page">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card">
+        <div class="card-title">📡 请求构造器</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="input-group">
+            <div class="input-label">接口模板</div>
+            <select class="input" id="req-endpoint" onchange="updateReqTemplate()">
+              <option value="completion">POST /completion（核心对话）</option>
+              <option value="upload">POST /upload-file（文件上传）</option>
+              <option value="auth">GET /auth（鉴权验证）</option>
+              <option value="feature">GET /feature_settings（功能配置）</option>
+              <option value="title">POST /title（标题生成）</option>
+              <option value="settings">GET /settings（用户设置）</option>
+              <option value="v1_models">GET /v1/models（OpenAI 模型列表）</option>
+              <option value="v1_chat">POST /v1/chat/completions（OpenAI 对话）</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <div class="input-label">Request Payload（JSON）</div>
+            <textarea class="input input-mono" id="req-payload" rows="10" style="resize:vertical;"></textarea>
+          </div>
+          <div class="input-group">
+            <div class="input-label">额外请求头</div>
+            <textarea class="input input-mono" id="req-headers" rows="3" style="resize:vertical;" placeholder='{"X-Custom": "value"}'></textarea>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" onclick="executeRequest()">▶ 执行请求</button>
+            <button class="btn btn-ghost" onclick="updateReqTemplate()">🔄 重置模板</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📨 响应预览</div>
+        <div style="display:flex;flex-direction:column;gap:10px;height:100%;">
+          <div style="display:flex;gap:10px;">
+            <div class="info-pill" id="resp-status">— 状态</div>
+            <div class="info-pill" id="resp-time">— 耗时</div>
+            <div class="info-pill" id="resp-type">— 类型</div>
+          </div>
+          <textarea class="input input-mono" id="resp-body" rows="20" readonly placeholder="执行请求后查看响应..." style="resize:vertical;flex:1;color:var(--green);"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CONFIG ══ -->
+  <div id="page-config" class="page">
+    <div class="config-grid">
+      <div class="card">
+        <div class="card-title">⚙️ 基础参数配置</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="input-group">
+            <div class="input-label">默认模型</div>
+            <select class="input" id="cfg-default-model"></select>
+          </div>
+          <div class="input-group">
+            <div class="input-label">账号轮询策略</div>
+            <select class="input" id="cfg-poll-strategy">
+              <option value="round_robin">轮询 Round Robin</option>
+              <option value="weighted">加权 Weighted</option>
+              <option value="least_fail">最少失败 Least Fail</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <div class="input-label">每分钟速率限制</div>
+            <input class="input" type="number" id="cfg-rate-limit" value="30" />
+          </div>
+          <button class="btn btn-primary" onclick="saveConfig()">💾 保存配置</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📨 completion 请求参数</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="row">
+            <div class="input-group">
+              <div class="input-label">locale（语言区域）</div>
+              <input class="input" type="text" id="cfg-locale" value="zh-CN" />
+            </div>
+            <div class="input-group">
+              <div class="input-label">timezone（时区）</div>
+              <input class="input" type="text" id="cfg-timezone" value="Asia/Shanghai" />
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="input-label">tools（工具声明）</div>
+            <textarea class="input input-mono" id="cfg-tools" rows="3">[{"type": "web_search_v0", "name": "web_search"}]</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔌 OpenAI 兼容层配置</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="input-group">
+            <div class="input-label">API Key</div>
+            <input class="input input-mono" id="cfg-api-key" value="sk-claude-proxy-default" />
+          </div>
+          <div class="input-group">
+            <div class="input-label">要求身份验证</div>
+            <select class="input" id="cfg-require-auth">
+              <option value="true">开启（推荐）</option>
+              <option value="false">关闭（仅内网使用）</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="saveOpenAIConfig()">💾 保存</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🔗 UUID 链管理</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="input-group">
+            <div class="input-label">当前 conversation_uuid</div>
+            <input class="input input-mono" id="conv-uuid" placeholder="自动生成..." readonly />
+          </div>
+          <div class="input-group">
+            <div class="input-label">parent_message_uuid</div>
+            <input class="input input-mono" id="parent-uuid" value="00000000-0000-0000-0000-000000000000" />
+          </div>
+          <div class="input-group">
+            <div class="input-label">organization_uuid</div>
+            <input class="input input-mono" id="org-uuid" placeholder="从 lastActiveOrg Cookie 获取" />
+          </div>
+          <button class="btn btn-ghost" onclick="generateUUIDs()">🔄 生成新 UUID 集合</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ LOGS ══ -->
+  <div id="page-logs" class="page">
+    <div class="card" style="flex:1;">
+      <div class="card-title">
+        📋 API 请求日志
+        <div class="input-group" style="margin-left:12px;min-width:0;">
+          <select class="input" id="log-account-filter" onchange="loadLogs()" style="width:150px;">
+            <option value="">全部账号</option>
+          </select>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;">
+          <button class="btn btn-ghost" onclick="loadLogs()">🔄 刷新</button>
+          <button class="btn btn-ghost" onclick="clearLogs()">🗑️ 清空</button>
+          <button class="btn btn-ghost" onclick="exportLogs()">📤 导出</button>
+        </div>
+      </div>
+      <div id="log-container"></div>
+    </div>
+  </div>
+
+  <!-- ══ DEPLOY ══ -->
+  <div id="page-deploy" class="page">
+    <div class="card">
+      <div class="card-title">🚀 部署说明</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Docker 一键部署（推荐）</div>
+          <div class="code-block"># 克隆项目
+git clone https://github.com/your/claude-client
+cd claude-client
+
+# 一键部署（Docker 模式）
+chmod +x deploy.sh
+sudo ./deploy.sh
+
+# 原生 Python 模式
+sudo ./deploy.sh --mode native</div>
+          <div style="margin-top:12px;font-size:13px;font-weight:600;margin-bottom:8px;">服务地址</div>
+          <div class="code-block">管理界面      : http://your-server:8765
+API 文档       : http://your-server:8765/docs
+OpenAI 兼容层  : http://your-server:8765/v1</div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:12px;">Docker 服务管理</div>
+          <div class="code-block">查看日志:  docker compose logs -f
+重启服务:  docker compose restart
+停止服务:  docker compose down
+更新部署:  git pull && docker compose up -d --build</div>
+          <div style="margin-top:12px;font-size:13px;font-weight:600;margin-bottom:8px;">Nginx SSL 证书（Let's Encrypt）</div>
+          <div class="code-block">certbot certonly --standalone -d your-domain.com
+# 替换 nginx/ssl/ 目录下的证书文件
+cp /etc/letsencrypt/live/your-domain.com/fullchain.pem nginx/ssl/cert.pem
+cp /etc/letsencrypt/live/your-domain.com/privkey.pem nginx/ssl/key.pem
+docker compose restart nginx</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- Toast -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModalDirect()">取消</button>
+      <button class="btn btn-primary" id="modal-confirm">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+const API = '';  // same origin
+const state = {
+  authMethod: 'cookie',
+  conversations: [],
+  currentConv: null,
+  parentMsgUuid: '00000000-0000-0000-0000-000000000000',
+  accounts: [],
+  models: [],
+  logs: [],
+};
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+async function init() {
+  await loadAccounts();
+  await loadModels();
+  await loadConversations();
+  renderCookieList([]);
+  updateReqTemplate();
+  await loadConfig();
+  await checkConnectionStatus();
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-' + name);
+  if (pg) pg.classList.add('active');
+
+  const names = {
+    dashboard:['概览仪表盘','Claude AI 第三方客户端管理'],
+    auth:['认证配置','设置 Cookie 和 OAuth 登录'],
+    cookies:['Cookie 管理','查看和编辑所有 Cookie 字段'],
+    chat:['对话管理','使用 SSE 流式接口与 Claude 对话'],
+    requests:['请求调试','直接构造和发送 API 请求'],
+    config:['参数配置','completion 参数与 UUID 管理'],
+    logs:['API 日志','记录所有请求和响应'],
+    accounts:['多账号管理','管理多个 Claude 账号'],
+    models:['模型配置','管理可用模型列表'],
+    openai:['OpenAI 兼容层','接入任意 OpenAI 客户端'],
+    refresh:['Cookie 自动刷新','配置 Playwright 自动刷新'],
+    deploy:['部署说明','Docker 与 Nginx 配置'],
+  };
+  const [title, sub] = names[name] || [name, ''];
+  document.getElementById('page-title').textContent = title;
+  document.getElementById('page-sub').textContent = sub;
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    if (item.getAttribute('onclick') && item.getAttribute('onclick').includes("'"+name+"'"))
+      item.classList.add('active');
+  });
+
+  // lazy loads
+  if (name === 'cookies') loadCookiesForAccount();
+  if (name === 'logs') loadLogs();
+  if (name === 'refresh') { loadRefreshLogs(); populateRefreshAccountSelect(); }
+  if (name === 'openai') populateOpenAITestModels();
+  if (name === 'dashboard') loadDashboardAccounts();
+}
+
+// ═══════════════════════════════════════════════════════
+// ACCOUNTS
+// ═══════════════════════════════════════════════════════
+async function loadAccounts() {
+  try {
+    const r = await fetch(API+'/api/accounts/');
+    const d = await r.json();
+    state.accounts = d.accounts || [];
+    document.getElementById('account-count').textContent = state.accounts.length;
+    document.getElementById('stat-accounts').textContent = state.accounts.filter(a=>a.is_active).length;
+    document.getElementById('stat-total-accounts').textContent = state.accounts.length;
+    renderAccountsGrid();
+    populateAccountSelects();
+  } catch(e) { console.warn('loadAccounts', e); }
+}
+
+function renderAccountsGrid() {
+  const grid = document.getElementById('accounts-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  state.accounts.forEach(acc => {
+    const card = document.createElement('div');
+    card.className = 'account-card' + (acc.is_active ? ' active' : '');
+    card.innerHTML = `
+      <div class="account-header">
+        <div class="account-avatar">${(acc.name||'?')[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="account-name">${esc(acc.name)}</div>
+          <div class="account-email">${esc(acc.email||'—')}</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+          <input type="checkbox" ${acc.is_active?'checked':''} style="accent-color:var(--accent);" onchange="toggleAccount(${acc.id},this.checked)"> 启用
+        </label>
+      </div>
+      <div class="account-meta" style="margin-bottom:12px;">
+        <span class="tag ${acc.cookie_valid?'tag-green':'tag-red'}">${acc.cookie_valid?'Cookie 完整':'Cookie 缺失'}</span>
+        <span class="tag ${acc.session_key_set?'tag-green':'tag-red'}">${acc.session_key_set?'Session ✓':'Session ✕'}</span>
+        <span class="tag tag-purple">权重 ${acc.weight}</span>
+        <span class="tag tag-gray">失败 ${acc.fail_count}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-bottom:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        org: ${acc.org_uuid||'未配置'}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="testAccount(${acc.id})">⚡ 测试</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="editAccount(${acc.id})">✏️ 编辑</button>
+        <button class="btn btn-danger" style="font-size:11px;padding:4px 10px;" onclick="deleteAccount(${acc.id})">🗑️ 删除</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function populateAccountSelects() {
+  const ids = ['import-account-select','auth-account-select','cookie-account-select','log-account-filter','chat-account-select','refresh-account-select'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const prevVal = el.value;
+    const hasAll = id === 'chat-account-select' || id === 'log-account-filter';
+    el.innerHTML = hasAll ? '<option value="">自动轮询 / 全部</option>' : '';
+    state.accounts.forEach(acc => {
+      const opt = document.createElement('option');
+      opt.value = acc.id;
+      opt.textContent = `${acc.name}${acc.email?' ('+acc.email+')':''}`;
+      el.appendChild(opt);
+    });
+    if (prevVal) el.value = prevVal;
+  });
+}
+
+async function toggleAccount(id, active) {
+  await fetch(API+`/api/accounts/${id}`, {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({is_active: active?1:0})
+  });
+  await loadAccounts();
+  showToast(`账号已${active?'启用':'禁用'}`, 'info');
+}
+
+async function testAccount(id) {
+  showToast('测试中...', 'info');
+  const r = await fetch(API+`/api/accounts/${id}/test`);
+  const d = await r.json();
+  showToast(d.connected?`账号 ${id} 连接正常`:`账号 ${id} 连接失败`, d.connected?'success':'error');
+}
+
+async function testAllAccounts() {
+  showToast('批量测试中...', 'info');
+  const r = await fetch(API+`/api/accounts/-1/test-all`).catch(()=>null);
+  if (!r) { showToast('批量测试接口不可用', 'error'); return; }
+  const d = await r.json();
+  (d.results||[]).forEach(res => {
+    showToast(`账号 ${res.name}: ${res.connected?'✓ 正常':'✗ 失败'}`, res.connected?'success':'error');
+  });
+}
+
+function openAddAccountModal() {
+  document.getElementById('modal-title').textContent = '➕ 添加新账号';
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="input-group"><div class="input-label">账号名称 *</div><input class="input" id="new-acc-name" placeholder="账号1" /></div>
+      <div class="input-group"><div class="input-label">邮箱（可选）</div><input class="input" id="new-acc-email" placeholder="user@gmail.com" /></div>
+      <div class="input-group"><div class="input-label">Organization UUID（可选，自动探测）</div><input class="input input-mono" id="new-acc-org" placeholder="" /></div>
+      <div class="input-group"><div class="input-label">轮询权重（1-10）</div><input class="input" id="new-acc-weight" type="number" value="1" min="1" max="10" /></div>
+    </div>`;
+  document.getElementById('modal-confirm').onclick = addAccount;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function addAccount() {
+  const name = document.getElementById('new-acc-name').value.trim();
+  if (!name) { showToast('账号名称不能为空', 'error'); return; }
+  await fetch(API+'/api/accounts/', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      name, email: document.getElementById('new-acc-email').value,
+      org_uuid: document.getElementById('new-acc-org').value,
+      weight: parseInt(document.getElementById('new-acc-weight').value)||1,
+    })
+  });
+  closeModalDirect();
+  await loadAccounts();
+  showToast('账号已添加', 'success');
+}
+
+async function editAccount(id) {
+  const acc = state.accounts.find(a=>a.id===id);
+  if (!acc) return;
+  document.getElementById('modal-title').textContent = `✏️ 编辑账号：${acc.name}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="input-group"><div class="input-label">账号名称</div><input class="input" id="edit-name" value="${esc(acc.name)}" /></div>
+      <div class="input-group"><div class="input-label">邮箱</div><input class="input" id="edit-email" value="${esc(acc.email||'')}" /></div>
+      <div class="input-group"><div class="input-label">Organization UUID</div><input class="input input-mono" id="edit-org" value="${esc(acc.org_uuid||'')}" /></div>
+      <div class="input-group"><div class="input-label">轮询权重</div><input class="input" id="edit-weight" type="number" value="${acc.weight}" min="1" max="10" /></div>
+    </div>`;
+  document.getElementById('modal-confirm').onclick = async () => {
+    await fetch(API+`/api/accounts/${id}`, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name: document.getElementById('edit-name').value,
+        email: document.getElementById('edit-email').value,
+        org_uuid: document.getElementById('edit-org').value,
+        weight: parseInt(document.getElementById('edit-weight').value)||1,
+      })
+    });
+    closeModalDirect();
+    await loadAccounts();
+    showToast('账号已更新', 'success');
+  };
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+async function deleteAccount(id) {
+  if (id === 1) { showToast('默认账号不可删除', 'error'); return; }
+  if (!confirm(`确认删除账号 ID=${id}？此操作将同时删除该账号的所有 Cookie。`)) return;
+  await fetch(API+`/api/accounts/${id}`, {method:'DELETE'});
+  await loadAccounts();
+  showToast('账号已删除', 'success');
+}
+
+async function importCookieForAccount() {
+  // Redirect to smart importer
+  await smartImportCookie();
+}
+
+async function setPollStrategy() {
+  const strategy = document.getElementById('poll-strategy-select').value;
+  await fetch(API+'/api/accounts/poll-strategy', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({strategy})
+  });
+  showToast('轮询策略已设置: '+strategy, 'success');
+}
+
+async function loadDashboardAccounts() {
+  const tbody = document.getElementById('dashboard-accounts-tbody');
+  if (!tbody) return;
+  const accounts = state.accounts;
+  if (!accounts.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text3);">暂无账号</td></tr>'; return; }
+  tbody.innerHTML = accounts.map(acc => `
+    <tr>
+      <td><strong>${esc(acc.name)}</strong></td>
+      <td style="color:var(--text3);">${esc(acc.email||'—')}</td>
+      <td><span class="tag ${acc.cookie_valid?'tag-green':'tag-red'}">${acc.cookie_valid?'完整':'缺失'}</span></td>
+      <td><span class="tag ${acc.session_key_set?'tag-green':'tag-red'}">${acc.session_key_set?'✓':'✗'}</span></td>
+      <td>${acc.weight}</td>
+      <td>${acc.fail_count}</td>
+      <td style="font-size:11px;color:var(--text3);">${acc.last_used_at?acc.last_used_at.slice(0,16):'—'}</td>
+      <td><button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;" onclick="testAccount(${acc.id})">测试</button></td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// MODELS
+// ═══════════════════════════════════════════════════════
+async function loadModels() {
+  try {
+    const r = await fetch(API+'/api/chat/models');
+    const d = await r.json();
+    state.models = d.models || [];
+    document.getElementById('stat-models').textContent = state.models.length;
+    document.getElementById('stat-active-models').textContent = state.models.length;
+    renderModelsTable();
+    populateModelSelects();
+  } catch(e) { console.warn('loadModels', e); }
+}
+
+function renderModelsTable() {
+  const tbody = document.getElementById('models-tbody');
+  if (!tbody) return;
+  if (!state.models.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);">暂无模型</td></tr>'; return; }
+  tbody.innerHTML = state.models.map(m => `
+    <tr>
+      <td><code style="font-family:'JetBrains Mono',monospace;font-size:12px;">${esc(m.model_id)}</code></td>
+      <td>${esc(m.display_name)}</td>
+      <td style="color:var(--text3);">${esc(m.description||'—')}</td>
+      <td>${(m.context_length/1000).toFixed(0)}K</td>
+      <td><span class="tag tag-green">启用</span></td>
+      <td><button class="btn btn-ghost" style="font-size:10px;padding:3px 8px;" onclick="setDefaultModelById('${esc(m.model_id)}')">设为默认</button></td>
+    </tr>`).join('');
+}
+
+function populateModelSelects() {
+  const ids = ['model-select','default-model-select','cfg-default-model','openai-test-model'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const prev = el.value;
+    el.innerHTML = '';
+    state.models.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m.model_id; o.textContent = m.display_name||m.model_id;
+      el.appendChild(o);
+    });
+    if (prev) el.value = prev;
+  });
+}
+
+function populateOpenAITestModels() { populateModelSelects(); }
+
+async function setDefaultModel() {
+  const model = document.getElementById('default-model-select').value;
+  await fetch(API+'/api/config/set', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({key:'default_model', value:model})
+  });
+  showToast('默认模型已设置: '+model, 'success');
+}
+
+function setDefaultModelById(modelId) {
+  const el = document.getElementById('default-model-select');
+  if (el) { el.value = modelId; setDefaultModel(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// OPENAI COMPAT
+// ═══════════════════════════════════════════════════════
+async function saveApiKey() {
+  const key = document.getElementById('openai-api-key').value.trim();
+  await fetch(API+'/api/config/set', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({key:'openai_api_key', value:key})
+  });
+  showToast('API Key 已保存', 'success');
+}
+
+async function toggleRequireAuth() {
+  const v = document.getElementById('require-auth-toggle').checked ? 'true' : 'false';
+  await fetch(API+'/api/config/set', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({key:'openai_require_auth', value:v})
+  });
+  showToast('验证设置已更新', 'info');
+}
+
+async function testOpenAI() {
+  const model = document.getElementById('openai-test-model').value || 'claude-sonnet-4-6';
+  const msg = document.getElementById('openai-test-msg').value.trim() || '你好';
+  const stream = document.getElementById('openai-test-stream').checked;
+  const apiKey = document.getElementById('openai-api-key').value;
+  const respEl = document.getElementById('openai-test-resp');
+  respEl.value = '请求中...';
+
+  try {
+    const res = await fetch(API+'/v1/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+      body: JSON.stringify({model, messages:[{role:'user',content:msg}], stream})
+    });
+
+    if (stream) {
+      respEl.value = '';
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value);
+        text.split('\n').forEach(line => {
+          if (line.startsWith('data:') && !line.includes('[DONE]')) {
+            try {
+              const d = JSON.parse(line.slice(5));
+              const content = d.choices?.[0]?.delta?.content || '';
+              if (content) respEl.value += content;
+            } catch(e) {}
+          }
+        });
+      }
+    } else {
+      const d = await res.json();
+      respEl.value = d.choices?.[0]?.message?.content || JSON.stringify(d, null, 2);
+    }
+  } catch(e) {
+    respEl.value = '错误: ' + e.message;
+    showToast('请求失败: '+e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// COOKIE REFRESH
+// ═══════════════════════════════════════════════════════
+async function startAutoRefresh() {
+  const interval = document.getElementById('refresh-interval').value;
+  await fetch(API+'/api/config/set', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({key:'cookie_refresh_interval_hours', value:interval})
+  });
+  const r = await fetch(API+'/api/accounts/refresh/start', {method:'POST'});
+  const d = await r.json();
+  document.getElementById('refresh-status').innerHTML = '<span class="status-dot dot-green"></span> 运行中';
+  showToast(d.message || '自动刷新已启动', 'success');
+}
+
+async function stopAutoRefresh() {
+  await fetch(API+'/api/accounts/refresh/stop', {method:'POST'});
+  document.getElementById('refresh-status').innerHTML = '<span class="status-dot dot-red"></span> 已停止';
+  showToast('自动刷新已停止', 'info');
+}
+
+async function manualRefreshAccount() {
+  const id = document.getElementById('refresh-account-select').value;
+  if (!id) { showToast('请选择账号', 'error'); return; }
+  showToast('正在启动浏览器自动登录...', 'info');
+  const r = await fetch(API+`/api/accounts/refresh/${id}`, {method:'POST'});
+  const d = await r.json();
+  showToast(d.success?`账号 ${id} 刷新成功`:`刷新失败: ${d.error}`, d.success?'success':'error');
+  await loadRefreshLogs();
+}
+
+async function loadRefreshLogs() {
+  const r = await fetch(API+'/api/accounts/refresh/logs').catch(()=>null);
+  if (!r) return;
+  const d = await r.json();
+  const tbody = document.getElementById('refresh-logs-tbody');
+  if (!tbody) return;
+  const logs = d.logs || [];
+  if (!logs.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);">暂无记录</td></tr>'; return; }
+  tbody.innerHTML = logs.map(l => `
+    <tr>
+      <td>${l.account_id}</td>
+      <td>${esc(l.method)}</td>
+      <td><span class="tag ${l.success?'tag-green':'tag-red'}">${l.success?'成功':'失败'}</span></td>
+      <td>${l.cookies_updated||0}</td>
+      <td style="color:var(--red);font-size:11px;">${esc(l.error||'—')}</td>
+      <td style="font-size:11px;color:var(--text3);">${(l.created_at||'').slice(0,16)}</td>
+    </tr>`).join('');
+}
+
+function populateRefreshAccountSelect() { populateAccountSelects(); }
+
+// ═══════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════
+function selectAuthMethod(el, method) {
+  document.querySelectorAll('.auth-method-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('cookie-method-panel').style.display = method==='cookie'?'':'none';
+  document.getElementById('oauth-method-panel').style.display = method==='oauth'?'':'none';
+}
+
+// ═══════════════════════════════════════════════════════
+// SMART COOKIE PARSER ENGINE
+// ═══════════════════════════════════════════════════════
+
+// All Claude-related cookie names, sorted longest-first to prevent prefix ambiguity
+const KNOWN_COOKIE_NAMES = [
+  'anthropic-consent-preferences', 'user-sidebar-visible-on-load',
+  'intercom-session-lupk8zyo', 'intercom-device-id-lupk8zyo',
+  'CH-prefers-color-scheme', 'anthropic-device-id',
+  'activitySessionId', 'user-sidebar-pinned',
+  'cookie_seed_done', 'lastActiveOrg', 'cf_clearance',
+  'ajs_anonymous_id', 'routingHint', '__cf_bm',
+  'ajs_user_id', 'sessionKey', 'g_state',
+  '_cfuvid', '__ssid', '_fbp', 'AEC',
+].sort((a,b) => b.length - a.length);
+
+// Auto-detect format: DevTools table vs standard name=value;
+function detectCookieFormat(text) {
+  if (!text || text.length < 10) return 'unknown';
+  // DevTools markers: ISO dates, "Medium"/"Lax" at segment ends, checkmarks, or domain/path patterns
+  const hasDevToolsMarkers =
+    /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text) ||
+    /(?:Medium|Low|High)\s*$|(?:Medium|Low|High)\s+\w/.test(text) ||
+    /claude\.ai\//i.test(text) && /✓/.test(text);
+  if (hasDevToolsMarkers) return 'devtools';
+  if (text.includes('=') && text.includes(';')) return 'standard';
+  // Check if text starts with a known name (DevTools without dates)
+  for (const name of KNOWN_COOKIE_NAMES) {
+    if (text.startsWith(name)) return 'devtools';
+  }
+  return 'standard';
+}
+
+// Parse DevTools Application > Cookies copied table text
+// Strategy: use known names as anchors, extract value between name and last metadata trailer
+function parseDevtoolsCookies(text) {
+  const namePattern = new RegExp(
+    KNOWN_COOKIE_NAMES.map(n => n.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')).join('|'), 'g'
+  );
+
+  const positions = [];
+  const seen = new Set();
+  let m;
+  while ((m = namePattern.exec(text)) !== null) {
+    if (!seen.has(m[0])) { seen.add(m[0]); positions.push({ start: m.index, end: m.index + m[0].length, name: m[0] }); }
+  }
+  if (!positions.length) return {};
+
+  // Trailer: domain + path + optional-expires + size-digits + optional-flags + optional-priority
+  const trailerRe = /(?:\.?(?:claude\.ai|a\.claude\.ai|google\.com|intercom\.io|googletagmanager\.com))\/[^\s]*?(?:(?:\d{4}-\d{2}-\d{2}T[\d:.Z]+|Session))?\d+(?:[✓✗]\s*)*(?:None|Lax|Strict)?(?:Low|Medium|High)?/g;
+
+  const cookies = {};
+  positions.forEach((pos, i) => {
+    const segEnd = i + 1 < positions.length ? positions[i+1].start : text.length;
+    const segment = text.slice(pos.end, segEnd);
+    // Find LAST trailer match (JWTs embed ".claude.ai" in value, so last match = actual metadata)
+    let lastTrailer = null;
+    trailerRe.lastIndex = 0;
+    let tm;
+    while ((tm = trailerRe.exec(segment)) !== null) lastTrailer = tm;
+    let value = lastTrailer ? segment.slice(0, lastTrailer.index) : segment;
+    // Final cleanup: strip trailing size + flags + priority
+    value = value.replace(/\d{1,5}(?:[✓✗]\s*)*(?:None|Lax|Strict)?(?:Low|Medium|High)?\s*$/, '').trim();
+    if (value) cookies[pos.name] = value;
+  });
+  return cookies;
+}
+
+// Parse standard name=value; format
+function parseStandardCookies(text) {
+  const cookies = {};
+  text.split(/;\s*/).forEach(pair => {
+    const idx = pair.indexOf('=');
+    if (idx > 0) cookies[pair.slice(0, idx).trim()] = pair.slice(idx + 1).trim();
+  });
+  return cookies;
+}
+
+// Universal parser — auto-detects format
+function parseAnyCookieFormat(text) {
+  const format = detectCookieFormat(text);
+  let cookies;
+  if (format === 'devtools') {
+    cookies = parseDevtoolsCookies(text);
+  } else {
+    const s = parseStandardCookies(text);
+    const d = parseDevtoolsCookies(text);
+    cookies = Object.keys(s).length >= Object.keys(d).length ? s : d;
+    return { cookies, format: Object.keys(s).length >= Object.keys(d).length ? 'standard' : 'devtools' };
+  }
+  return { cookies, format };
+}
+
+// Build rich preview HTML
+function buildPreviewHTML(cookies, format) {
+  if (!cookies || !Object.keys(cookies).length)
+    return '<div style="color:var(--text3);font-size:12px;text-align:center;padding:16px;">未能解析到任何 Cookie</div>';
+
+  const PRIORITY = ['sessionKey','cf_clearance','anthropic-device-id','__ssid','__cf_bm','lastActiveOrg','routingHint'];
+  const critical = PRIORITY.filter(k => cookies[k]);
+  const others = Object.keys(cookies).filter(k => !PRIORITY.includes(k));
+  const missing = ['sessionKey','anthropic-device-id','__ssid','lastActiveOrg'].filter(k => !cookies[k]);
+
+  const fmtBadge = format==='devtools'
+    ? '<span style="background:rgba(67,217,142,.15);color:var(--green);padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;">✓ DevTools 格式</span>'
+    : '<span style="background:rgba(124,106,247,.15);color:var(--accent2);padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;">✓ 标准格式</span>';
+
+  let html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">${fmtBadge}
+    <span style="color:var(--text3);font-size:11px;">识别 <strong style="color:var(--text);">${Object.keys(cookies).length}</strong> 个字段</span>
+    ${cookies.sessionKey ? '<span style="color:var(--green);font-size:11px;font-weight:600;">✓ sessionKey 完整</span>' : '<span style="color:var(--red);font-size:11px;font-weight:600;">✗ sessionKey 缺失</span>'}
+  </div>`;
+
+  if (critical.length) {
+    html += `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;font-weight:600;">🔑 关键凭证</div>`;
+    critical.forEach(k => {
+      const v = cookies[k], preview = v.length>36 ? v.slice(0,36)+'…' : v;
+      html += `<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:${k==='sessionKey'?'rgba(67,217,142,.06)':'var(--bg2)'};border:1px solid ${k==='sessionKey'?'rgba(67,217,142,.25)':'var(--border)'};border-radius:6px;margin-bottom:3px;">
+        <span style="color:${k==='sessionKey'?'var(--green)':'var(--accent2)'};font-size:11px;font-weight:600;min-width:130px;flex-shrink:0;">${k}</span>
+        <span style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${preview}</span>
+      </div>`;
+    });
+  }
+  if (missing.length) {
+    html += `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:7px 0 5px;font-weight:600;">⚠️ 关键字段缺失</div>`;
+    missing.forEach(k => { html += `<div style="padding:3px 8px;background:rgba(240,106,106,.05);border:1px solid rgba(240,106,106,.2);border-radius:5px;margin-bottom:2px;font-size:11px;color:var(--red);">${k}</div>`; });
+  }
+  if (others.length) {
+    html += `<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:7px 0 5px;font-weight:600;">其他字段 (${others.length})</div>`;
+    others.forEach(k => {
+      const v = cookies[k];
+      html += `<div style="display:flex;gap:6px;padding:2px 8px;font-size:11px;border-bottom:1px solid var(--border);color:var(--text3);">
+        <span style="min-width:120px;flex-shrink:0;">${k}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${v.length>28?v.slice(0,28)+'…':v}</span>
+      </div>`;
+    });
+  }
+  return html;
+}
+
+function buildCookieString(cookies) {
+  return Object.entries(cookies).map(([k,v]) => `${k}=${v}`).join('; ');
+}
+
+// ── Accounts page handlers ──
+function switchFormatTab(tab) {
+  const active = 'flex:1;padding:10px 14px;border-radius:10px;border:1px solid rgba(124,106,247,.4);background:rgba(124,106,247,.08);cursor:pointer;transition:all .2s;';
+  const inactive = 'flex:1;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;transition:all .2s;';
+  document.getElementById('tab-devtools').style.cssText = tab==='devtools' ? active : inactive;
+  document.getElementById('tab-standard').style.cssText  = tab==='standard'  ? active : inactive;
+  document.getElementById('devtools-guide').style.display = tab==='devtools' ? '' : 'none';
+  document.getElementById('standard-guide').style.display = tab==='standard'  ? '' : 'none';
+}
+
+let _previewTimer = null;
+function onImportInputChange(val) {
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(() => {
+    updateImportBadge(val);
+    if (val.trim().length > 20) {
+      const { cookies, format } = parseAnyCookieFormat(val);
+      const panel = document.getElementById('import-preview-panel');
+      if (panel) panel.innerHTML = buildPreviewHTML(cookies, format);
+    }
+  }, 280);
+}
+
+function updateImportBadge(val) {
+  const badge = document.getElementById('import-format-badge');
+  if (!badge) return;
+  if (!val || !val.trim()) { badge.innerHTML = '<span>🔍</span> 等待输入'; return; }
+  const fmt = detectCookieFormat(val);
+  if (fmt === 'devtools') badge.innerHTML = '<span style="color:var(--green);">✓</span> DevTools 格式';
+  else if (fmt === 'standard') badge.innerHTML = '<span style="color:var(--accent2);">✓</span> 标准格式';
+  else badge.innerHTML = '<span style="color:var(--yellow);">?</span> 未知格式';
+}
+
+function previewImport() {
+  const val = document.getElementById('import-cookie-str').value;
+  if (!val.trim()) { showToast('请先粘贴 Cookie 数据', 'error'); return; }
+  const { cookies, format } = parseAnyCookieFormat(val);
+  const panel = document.getElementById('import-preview-panel');
+  if (panel) panel.innerHTML = buildPreviewHTML(cookies, format);
+  showToast(`预览完成，识别 ${Object.keys(cookies).length} 个字段（${format}格式）`, 'info');
+}
+
+async function smartImportCookie() {
+  const accountId = document.getElementById('import-account-select').value || 1;
+  const raw = document.getElementById('import-cookie-str').value.trim();
+  if (!raw) { showToast('请先粘贴 Cookie 数据', 'error'); return; }
+  const { cookies, format } = parseAnyCookieFormat(raw);
+  if (!Object.keys(cookies).length) { showToast('未能解析到任何 Cookie，请检查格式', 'error'); return; }
+  if (!cookies.sessionKey) { showToast('⚠️ 未找到 sessionKey，请确认已复制完整内容', 'error'); return; }
+
+  const cookieStr = buildCookieString(cookies);
+  const r = await fetch(API+'/api/accounts/cookie/import', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cookie_string: cookieStr, account_id: parseInt(accountId) })
+  });
+  const d = await r.json();
+  if (d.success) {
+    const panel = document.getElementById('import-preview-panel');
+    if (panel) panel.innerHTML = buildPreviewHTML(cookies, format);
+    showToast(`✅ 账号 ${accountId} 导入成功！${d.parsed_count||Object.keys(cookies).length} 个 Cookie（${format}格式）`, 'success');
+    await loadAccounts();
+  } else {
+    showToast('导入失败: '+(d.detail||'未知错误'), 'error');
+  }
+}
+
+// ── Auth page handlers ──
+let _authBatchTimer = null;
+function onAuthBatchChange(val) {
+  clearTimeout(_authBatchTimer);
+  _authBatchTimer = setTimeout(() => {
+    const badge = document.getElementById('auth-format-badge');
+    if (badge) {
+      const fmt = detectCookieFormat(val);
+      if (fmt==='devtools') badge.innerHTML = '<span style="color:var(--green);">✓</span> DevTools 格式';
+      else if (fmt==='standard') badge.innerHTML = '<span style="color:var(--accent2);">✓</span> 标准格式';
+      else badge.innerHTML = '<span>🔍</span> 等待输入';
+    }
+    if (val.trim().length > 20) {
+      const { cookies } = parseAnyCookieFormat(val);
+      const preview = document.getElementById('auth-parse-preview');
+      if (preview) {
+        preview.style.display = '';
+        const count = Object.keys(cookies).length;
+        preview.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:11px;color:var(--text2);">识别 <strong style="color:var(--text);">${count}</strong> 个字段</span>
+            ${cookies.sessionKey
+              ? '<span style="color:var(--green);font-size:11px;">✓ sessionKey 已找到</span>'
+              : '<span style="color:var(--red);font-size:11px;">✗ sessionKey 未找到</span>'}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${Object.keys(cookies).map(k => `<span style="padding:2px 7px;border-radius:12px;font-size:10px;background:${k==='sessionKey'?'rgba(67,217,142,.15)':'var(--bg3)'};color:${k==='sessionKey'?'var(--green)':'var(--text2)'};">${k}</span>`).join('')}
+          </div>`;
+      }
+    }
+  }, 280);
+}
+
+function parseCookieBatch() {
+  const raw = document.getElementById('cookieBatch').value.trim();
+  if (!raw) { showToast('请输入 Cookie 字符串', 'error'); return; }
+  const { cookies, format } = parseAnyCookieFormat(raw);
+  if (!Object.keys(cookies).length) { showToast('未能解析到任何字段，请检查格式', 'error'); return; }
+  const fieldMap = {
+    'sessionKey':'sessionKey', 'anthropic-device-id':'deviceId', '__ssid':'ssid',
+    'cf_clearance':'cfClearance', '__cf_bm':'cfBm', 'routingHint':'routingHint',
+    'lastActiveOrg':'lastActiveOrg',
+  };
+  let count = 0;
+  Object.entries(fieldMap).forEach(([k, id]) => {
+    if (cookies[k]) { const el = document.getElementById(id); if (el) { el.value = cookies[k]; count++; } }
+  });
+  const fmtLabel = format==='devtools' ? 'DevTools格式' : '标准格式';
+  showToast(`🧠 解析完成（${fmtLabel}），填充 ${count} 个字段，共识别 ${Object.keys(cookies).length} 个`, 'success');
+}
+
+async function saveCookies() {
+  const key = document.getElementById('sessionKey').value.trim();
+  if (!key) { showToast('请输入 sessionKey', 'error'); return; }
+  const accountId = parseInt(document.getElementById('auth-account-select').value) || 1;
+  const cookieStr = [
+    key && `sessionKey=${key}`,
+    document.getElementById('deviceId').value && `anthropic-device-id=${document.getElementById('deviceId').value}`,
+    document.getElementById('ssid').value && `__ssid=${document.getElementById('ssid').value}`,
+    document.getElementById('cfClearance').value && `cf_clearance=${document.getElementById('cfClearance').value}`,
+    document.getElementById('cfBm').value && `__cf_bm=${document.getElementById('cfBm').value}`,
+    document.getElementById('routingHint').value && `routingHint=${document.getElementById('routingHint').value}`,
+    document.getElementById('lastActiveOrg').value && `lastActiveOrg=${document.getElementById('lastActiveOrg').value}`,
+  ].filter(Boolean).join('; ');
+
+  const r = await fetch(API+'/api/accounts/cookie/import', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({cookie_string: cookieStr, account_id: accountId})
+  });
+  const d = await r.json();
+  if (d.success) {
+    document.getElementById('auth-dot').className = 'status-dot dot-green';
+    document.getElementById('conn-status').innerHTML = '<span class="status-dot dot-green"></span> 已配置';
+    showToast(`账号 ${accountId} Cookie 已保存`, 'success');
+    await loadAccounts();
+  } else {
+    showToast('保存失败', 'error');
+  }
+}
+
+async function clearCookies() {
+  const accountId = parseInt(document.getElementById('auth-account-select').value) || 1;
+  await fetch(API+`/api/auth/cookie/clear?account_id=${accountId}`, {method:'DELETE'});
+  ['sessionKey','deviceId','ssid','cfClearance','cfBm','routingHint','lastActiveOrg'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('cookieBatch').value = '';
+  showToast(`账号 ${accountId} Cookie 已清除`, 'info');
+}
+
+async function loadFromProxy() {
+  const accountId = parseInt(document.getElementById('auth-account-select').value) || 1;
+  showToast('尝试加载 cookies.json...', 'info');
+  const r = await fetch(API+`/api/auth/proxy/load-file?path=cookies.json&account_id=${accountId}`);
+  const d = await r.json();
+  showToast(d.success?`导入 ${d.imported_count} 个 Cookie`:'加载失败: '+d.error, d.success?'success':'error');
+  if (d.success) await loadAccounts();
+}
+
+async function browserAutoLogin() {
+  const accountId = parseInt(document.getElementById('auth-account-select').value) || 1;
+  showToast('正在启动 Playwright 浏览器...', 'info');
+  const r = await fetch(API+'/api/auth/browser/login', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({account_id: accountId})
+  });
+  const d = await r.json();
+  showToast(d.success?`捕获 ${d.count||0} 个 Cookie`:'启动失败: '+d.error, d.success?'success':'error');
+  if (d.success) await loadAccounts();
+}
+
+// ═══════════════════════════════════════════════════════
+// COOKIES PAGE
+// ═══════════════════════════════════════════════════════
+const COOKIE_DEFS = [
+  {name:'sessionKey',category:'auth',level:'critical',desc:'核心登录凭证，sk-ant-sid02- 开头',domain:'claude.ai'},
+  {name:'anthropic-device-id',category:'auth',level:'high',desc:'设备唯一标识符',domain:'claude.ai'},
+  {name:'__ssid',category:'auth',level:'high',desc:'Session ID，维持会话连续性',domain:'claude.ai'},
+  {name:'cf_clearance',category:'cloudflare',level:'high',desc:'Cloudflare 人机验证令牌，数小时有效',domain:'claude.ai'},
+  {name:'__cf_bm',category:'cloudflare',level:'medium',desc:'Bot Management 评分，30分钟刷新',domain:'claude.ai'},
+  {name:'_cfuvid',category:'cloudflare',level:'medium',desc:'Cloudflare 唯一访客ID',domain:'claude.ai'},
+  {name:'routingHint',category:'infra',level:'medium',desc:'负载均衡路由提示',domain:'claude.ai'},
+  {name:'lastActiveOrg',category:'infra',level:'medium',desc:'最近激活的组织 UUID',domain:'claude.ai'},
+  {name:'activitySessionId',category:'analytics',level:'low',desc:'Anthropic 活动会话ID',domain:'claude.ai'},
+  {name:'CH-prefers-color-scheme',category:'pref',level:'low',desc:'界面主题偏好',domain:'claude.ai'},
+  {name:'anthropic-consent-pr',category:'pref',level:'low',desc:'Cookie 同意记录',domain:'claude.ai'},
+  {name:'ajs_anonymous_id',category:'tracking',level:'low',desc:'Segment 匿名访客ID',domain:'claude.ai'},
+  {name:'ajs_user_id',category:'tracking',level:'low',desc:'Segment 用户ID',domain:'claude.ai'},
+  {name:'hubspotutk',category:'tracking',level:'low',desc:'HubSpot 追踪密钥',domain:'claude.ai'},
+  {name:'_fbp',category:'tracking',level:'low',desc:'Facebook Pixel 追踪',domain:'claude.ai'},
+];
+
+const CAT_COLORS = {auth:'var(--red)',cloudflare:'var(--yellow)',infra:'var(--accent2)',pref:'var(--green)',analytics:'var(--text2)',tracking:'var(--text3)'};
+const CAT_LABELS = {auth:'🔐 身份认证',cloudflare:'🛡️ CF安全',infra:'🏗️ 基础设施',pref:'⚙️ 功能偏好',analytics:'📊 产品分析',tracking:'👁️ 第三方追踪'};
+
+async function loadCookiesForAccount() {
+  const sel = document.getElementById('cookie-account-select');
+  const accountId = sel ? (sel.value || 1) : 1;
+  try {
+    const r = await fetch(API+`/api/cookie/all?account_id=${accountId}`);
+    const d = await r.json();
+    const cookieMap = {};
+    (d.cookies||[]).forEach(c => { cookieMap[c.name] = c.value; });
+    renderCookieList(cookieMap);
+  } catch(e) { renderCookieList({}); }
+}
+
+function renderCookieList(cookieMap) {
+  const container = document.getElementById('cookie-list');
+  if (!container) return;
+  container.innerHTML = '';
+  const categories = ['auth','cloudflare','infra','pref','analytics','tracking'];
+  categories.forEach(cat => {
+    const items = COOKIE_DEFS.filter(c => c.category===cat);
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 4px 4px;margin-top:4px;';
+    header.textContent = CAT_LABELS[cat];
+    container.appendChild(header);
+    items.forEach(cookie => {
+      const val = cookieMap[cookie.name];
+      const el = document.createElement('div');
+      el.className = 'cookie-item' + (val ? ' active' : '');
+      const preview = val ? (val.length>20?val.slice(0,20)+'...':val) : '未配置';
+      el.innerHTML = `
+        <div class="cookie-status" style="background:${CAT_COLORS[cookie.category]};"></div>
+        <div style="flex:1;min-width:0;">
+          <div class="cookie-name">${cookie.name}</div>
+          <div class="cookie-desc">${cookie.desc}</div>
+          <div class="cookie-meta">域: ${cookie.domain}</div>
+        </div>
+        <div class="cookie-value">${val ? '已设置' : '未配置'}</div>
+        <div class="cookie-actions">
+          <button class="btn btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="editCookieValue('${cookie.name}','${esc(val||'')}')">编辑</button>
+        </div>`;
+      container.appendChild(el);
+    });
+  });
+}
+
+async function editCookieValue(name, currentVal) {
+  const newVal = prompt(`设置 ${name}:`, currentVal);
+  if (newVal === null) return;
+  const sel = document.getElementById('cookie-account-select');
+  const accountId = sel ? (sel.value||1) : 1;
+  await fetch(API+'/api/cookie/set', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, value:newVal, account_id:parseInt(accountId)})
+  });
+  await loadCookiesForAccount();
+  showToast(`Cookie ${name} 已更新`, 'success');
+}
+
+// ═══════════════════════════════════════════════════════
+// CHAT
+// ═══════════════════════════════════════════════════════
+async function loadConversations() {
+  try {
+    const r = await fetch(API+'/api/chat/conversations');
+    const d = await r.json();
+    state.conversations = d.conversations || [];
+    document.getElementById('conv-count').textContent = state.conversations.length;
+    document.getElementById('stat-convs').textContent = state.conversations.length;
+    renderConversations();
+  } catch(e) {}
+}
+
+function renderConversations() {
+  const container = document.getElementById('conv-list');
+  if (!container) return;
+  container.innerHTML = '';
+  state.conversations.forEach((conv, i) => {
+    const el = document.createElement('div');
+    el.className = 'conv-item' + (i===0?' active':'');
+    el.onclick = () => loadConversation(conv, el);
+    el.innerHTML = `<div class="conv-title">${esc(conv.title||'新对话')}</div><div class="conv-time">${(conv.updated_at||'').slice(0,16)}</div>`;
+    container.appendChild(el);
+  });
+  if (state.conversations.length && !state.currentConv) {
+    state.currentConv = state.conversations[0];
+  }
+}
+
+function loadConversation(conv, el) {
+  document.querySelectorAll('.conv-item').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  state.currentConv = conv;
+  state.parentMsgUuid = conv.parent_message_uuid || '00000000-0000-0000-0000-000000000000';
+  document.getElementById('current-conv-title').innerHTML = `📝 ${esc(conv.title||'对话')} <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0;">${conv.uuid.slice(0,8)}…</span>`;
+  loadMessages(conv.uuid);
+}
+
+async function loadMessages(convUuid) {
+  try {
+    const r = await fetch(API+`/api/chat/messages/${convUuid}`);
+    const d = await r.json();
+    const area = document.getElementById('messages-area');
+    area.innerHTML = '';
+    if (!(d.messages||[]).length) {
+      area.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">💬 暂无消息</div>';
+      return;
+    }
+    d.messages.forEach(msg => area.appendChild(createMsgEl(msg)));
+    area.scrollTop = area.scrollHeight;
+  } catch(e) {}
+}
+
+async function newConversation() {
+  const model = document.getElementById('model-select').value || 'claude-sonnet-4-6';
+  const accountId = parseInt(document.getElementById('chat-account-select').value) || null;
+  const r = await fetch(API+'/api/chat/conversations', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({title:'新对话', model, account_id: accountId||1})
+  });
+  const d = await r.json();
+  if (d.success) {
+    await loadConversations();
+    showToast('新对话已创建', 'success');
+  }
+}
+
+function createMsgEl(msg) {
+  const el = document.createElement('div');
+  el.className = 'msg msg-' + msg.role;
+  const content = esc(msg.content||'').replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  el.innerHTML = `
+    <div class="msg-avatar">${msg.role==='user'?'👤':'✦'}</div>
+    <div>
+      <div class="msg-body">${content}</div>
+      <div class="msg-time">${(msg.created_at||'').slice(11,19)}</div>
+    </div>`;
+  return el;
+}
+
+function handleChatKey(e) { if (e.ctrlKey && e.key==='Enter') sendMessage(); }
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  if (!state.currentConv) await newConversation();
+
+  const model = document.getElementById('model-select').value || 'claude-sonnet-4-6';
+  const accountId = parseInt(document.getElementById('chat-account-select').value) || null;
+  const toolsVal = document.getElementById('tools-select').value;
+  const streamMode = document.getElementById('stream-mode').checked;
+
+  // Optimistic UI
+  const area = document.getElementById('messages-area');
+  const userEl = document.createElement('div');
+  userEl.className = 'msg msg-user';
+  userEl.innerHTML = `<div class="msg-avatar">👤</div><div><div class="msg-body">${esc(text).replace(/\n/g,'<br>')}</div><div class="msg-time">${new Date().toTimeString().slice(0,8)}</div></div>`;
+  area.appendChild(userEl);
+  input.value = '';
+
+  const typingEl = document.createElement('div');
+  typingEl.className = 'msg msg-assistant';
+  typingEl.innerHTML = `<div class="msg-avatar">✦</div><div><div class="msg-body"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div><span style="font-size:11px;color:var(--text3);margin-left:6px;">SSE 流式接收中...</span></div></div></div>`;
+  area.appendChild(typingEl);
+  area.scrollTop = area.scrollHeight;
+
+  const payload = {
+    prompt: text, model,
+    conversation_uuid: state.currentConv.uuid,
+    parent_message_uuid: state.parentMsgUuid,
+    locale: document.getElementById('locale').value || 'zh-CN',
+    timezone: document.getElementById('timezone').value || 'Asia/Shanghai',
+    tools_enabled: toolsVal !== 'none',
+    account_id: accountId,
+  };
+
+  try {
+    const resp = await fetch(API+'/api/chat/completion', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+      typingEl.querySelector('.msg-body').innerHTML = `<span style="color:var(--red)">请求失败 ${resp.status}</span>`;
+      return;
+    }
+
+    const bodyEl = typingEl.querySelector('.msg-body');
+    let fullText = '';
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      const text2 = decoder.decode(value);
+      text2.split('\n').forEach(line => {
+        if (!line.startsWith('data:')) return;
+        try {
+          const d = JSON.parse(line.slice(5).trim());
+          if (d.type === 'content_block_delta' && d.delta?.type === 'text_delta') {
+            fullText += d.delta.text;
+            bodyEl.innerHTML = esc(fullText).replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+            area.scrollTop = area.scrollHeight;
+          }
+          if (d.type === 'turn_complete') {
+            state.parentMsgUuid = d.assistant_uuid || state.parentMsgUuid;
+            document.getElementById('parent-uuid-display').textContent = `parent: ${(d.assistant_uuid||'').slice(0,8)}…`;
+          }
+        } catch(e) {}
+      });
+    }
+  } catch(e) {
+    typingEl.querySelector('.msg-body').innerHTML = `<span style="color:var(--red)">错误: ${esc(e.message)}</span>`;
+  }
+}
+
+function clearMessages() {
+  const area = document.getElementById('messages-area');
+  area.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">💬 开始一段新对话。</div>';
+  state.parentMsgUuid = '00000000-0000-0000-0000-000000000000';
+}
+
+// ═══════════════════════════════════════════════════════
+// REQUESTS
+// ═══════════════════════════════════════════════════════
+const REQ_TEMPLATES = {
+  completion:{prompt:'你好',model:'claude-sonnet-4-6',parent_message_uuid:'00000000-0000-0000-0000-000000000000',locale:'zh-CN',timezone:'Asia/Shanghai',attachments:[],files:[],rendering_mode:'messages',personalized_styles:[],sync_sources:[],tools:[{type:'web_search_v0',name:'web_search'}],turn_message_uuids:{human_message_uuid:'{{uuid}}',assistant_message_uuid:'{{uuid}}'}},
+  upload:{_note:'multipart/form-data格式',file:'{{binary}}',_naming:'{timestamp_ms}_{original_name}'},
+  auth:{_note:'GET请求，依赖Cookie鉴权'},
+  feature:{_note:'GET请求，返回功能开关配置'},
+  title:{conversation_uuid:'{{uuid}}',_note:'首次对话后触发'},
+  settings:{_note:'GET请求，返回用户个人设置'},
+  v1_models:{_note:'GET /v1/models — OpenAI格式模型列表，需要Bearer Token'},
+  v1_chat:{model:'claude-sonnet-4-6',messages:[{role:'user',content:'你好'}],stream:false},
+};
+
+function updateReqTemplate() {
+  const ep = document.getElementById('req-endpoint')?.value;
+  if (!ep) return;
+  document.getElementById('req-payload').value = JSON.stringify(REQ_TEMPLATES[ep]||{}, null, 2);
+}
+
+async function executeRequest() {
+  const ep = document.getElementById('req-endpoint').value;
+  const startTime = Date.now();
+  let payload;
+  try { payload = JSON.parse(document.getElementById('req-payload').value||'{}'); } catch(e) { showToast('JSON 格式错误', 'error'); return; }
+
+  const isV1 = ep.startsWith('v1_');
+  const isGet = ep === 'auth' || ep === 'feature' || ep === 'settings' || ep === 'v1_models';
+  const urlMap = {
+    completion:'/api/chat/completion', upload:'/api/chat/upload',
+    auth:'/api/auth/test', feature:'/api/proxy/raw',
+    settings:'/api/proxy/raw', title:'/api/proxy/raw',
+    v1_models:'/v1/models', v1_chat:'/v1/chat/completions',
+  };
+
+  const apiKey = document.getElementById('openai-api-key')?.value || 'sk-claude-proxy-default';
+  const headers = {'Content-Type':'application/json'};
+  if (isV1) headers['Authorization'] = 'Bearer ' + apiKey;
+
+  try {
+    const resp = await fetch(API+(urlMap[ep]||'/api/proxy/raw'), {
+      method: isGet?'GET':'POST', headers,
+      body: isGet ? undefined : JSON.stringify(payload)
+    });
+    const elapsed = Date.now() - startTime;
+    let body;
+    try { body = await resp.json(); } catch(e) { body = await resp.text(); }
+    document.getElementById('resp-status').innerHTML = `<span style="color:${resp.ok?'var(--green)':'var(--red)'};">${resp.status}</span>`;
+    document.getElementById('resp-time').textContent = elapsed+'ms';
+    document.getElementById('resp-type').textContent = resp.headers.get('content-type')||'—';
+    document.getElementById('resp-body').value = typeof body==='string'?body:JSON.stringify(body,null,2);
+    showToast(`请求完成 ${resp.status}`, resp.ok?'success':'error');
+  } catch(e) {
+    document.getElementById('resp-body').value = '错误: '+e.message;
+    showToast('请求失败: '+e.message, 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+async function loadConfig() {
+  try {
+    const r = await fetch(API+'/api/config/all');
+    const d = await r.json();
+    if (d.default_model && document.getElementById('cfg-default-model')) document.getElementById('cfg-default-model').value = d.default_model;
+    if (d.account_poll_strategy) {
+      const el = document.getElementById('cfg-poll-strategy');
+      if (el) el.value = d.account_poll_strategy;
+      const sel = document.getElementById('poll-strategy-select');
+      if (sel) sel.value = d.account_poll_strategy;
+    }
+    if (d.openai_api_key) {
+      const el = document.getElementById('openai-api-key');
+      if (el) el.value = d.openai_api_key;
+      const cfg = document.getElementById('cfg-api-key');
+      if (cfg) cfg.value = d.openai_api_key;
+    }
+    if (d.rate_limit_per_minute && document.getElementById('cfg-rate-limit')) document.getElementById('cfg-rate-limit').value = d.rate_limit_per_minute;
+  } catch(e) {}
+}
+
+async function saveConfig() {
+  const configs = {};
+  const model = document.getElementById('cfg-default-model')?.value;
+  const strategy = document.getElementById('cfg-poll-strategy')?.value;
+  const rateLimit = document.getElementById('cfg-rate-limit')?.value;
+  if (model) configs.default_model = model;
+  if (strategy) configs.account_poll_strategy = strategy;
+  if (rateLimit) configs.rate_limit_per_minute = rateLimit;
+
+  await fetch(API+'/api/config/bulk', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({configs})
+  });
+  showToast('配置已保存', 'success');
+}
+
+async function saveOpenAIConfig() {
+  const key = document.getElementById('cfg-api-key')?.value || 'sk-claude-proxy-default';
+  const requireAuth = document.getElementById('cfg-require-auth')?.value || 'true';
+  await fetch(API+'/api/config/bulk', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({configs:{openai_api_key:key, openai_require_auth:requireAuth}})
+  });
+  showToast('OpenAI 配置已保存', 'success');
+}
+
+function generateUUIDs() {
+  document.getElementById('conv-uuid').value = genUUID();
+  document.getElementById('parent-uuid').value = '00000000-0000-0000-0000-000000000000';
+  showToast('UUID 已重新生成', 'success');
+}
+
+// ═══════════════════════════════════════════════════════
+// LOGS
+// ═══════════════════════════════════════════════════════
+async function loadLogs() {
+  try {
+    const r = await fetch(API+'/api/config/logs?limit=100');
+    const d = await r.json();
+    state.logs = d.logs || [];
+    renderLogs();
+  } catch(e) {}
+}
+
+function renderLogs() {
+  const container = document.getElementById('log-container');
+  if (!container) return;
+  const accountFilter = document.getElementById('log-account-filter')?.value;
+  const logs = accountFilter ? state.logs.filter(l => String(l.account_id) === accountFilter) : state.logs;
+  if (!logs.length) { container.innerHTML = '<div style="text-align:center;color:var(--text3);padding:20px;">暂无日志</div>'; return; }
+  container.innerHTML = '';
+  logs.slice(0,100).forEach(log => {
+    const el = document.createElement('div');
+    el.className = 'log-entry';
+    const isSSE = log.method.includes('SSE');
+    const methodClass = isSSE?'method-sse':log.method==='GET'?'method-get':'method-post';
+    const statusClass = log.status_code===200?'color:var(--green)':'color:var(--red)';
+    el.innerHTML = `
+      <span class="log-method ${methodClass}">${log.method}</span>
+      <span style="color:var(--text2);flex:1;font-size:12px;">${esc(log.endpoint)}</span>
+      <span style="${statusClass};font-size:11px;font-weight:700;">${log.status_code||'—'}</span>
+      <span style="color:var(--text3);font-size:11px;">${log.duration_ms||0}ms</span>
+      <span style="color:var(--text3);font-size:10px;">${(log.created_at||'').slice(0,16)}</span>
+      ${log.error?`<span style="color:var(--red);font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(log.error)}</span>`:''}`;
+    container.appendChild(el);
+  });
+}
+
+async function clearLogs() {
+  await fetch(API+'/api/config/logs', {method:'DELETE'});
+  state.logs = [];
+  renderLogs();
+  showToast('日志已清空', 'info');
+}
+
+function exportLogs() {
+  const data = state.logs.map(l => `[${l.created_at}] ${l.method} ${l.endpoint} ${l.status_code} ${l.duration_ms}ms${l.error?' ERR:'+l.error:''}`).join('\n');
+  const blob = new Blob([data], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'claude_api_logs.txt';
+  a.click();
+  showToast('日志已导出', 'success');
+}
+
+// ═══════════════════════════════════════════════════════
+// CONNECTION TEST
+// ═══════════════════════════════════════════════════════
+async function testConnection() {
+  showToast('检查连接中...', 'info');
+  try {
+    const r = await fetch(API+'/api/auth/test');
+    const d = await r.json();
+    if (d.connected) {
+      document.getElementById('conn-status').innerHTML = '<span class="status-dot dot-green"></span> 连接正常';
+      document.getElementById('auth-dot').className = 'status-dot dot-green';
+      document.getElementById('stat-auth').textContent = '已连接';
+      document.getElementById('stat-auth').style.color = 'var(--green)';
+      document.getElementById('stat-auth-sub').textContent = '认证有效';
+      showToast('连接成功！', 'success');
+    } else {
+      document.getElementById('conn-status').innerHTML = '<span class="status-dot dot-red"></span> 未认证';
+      showToast(d.reason || '连接失败，请检查 Cookie', 'error');
+    }
+  } catch(e) {
+    document.getElementById('conn-status').innerHTML = '<span class="status-dot dot-red"></span> 服务异常';
+    showToast('后端服务连接失败', 'error');
+  }
+}
+
+async function checkConnectionStatus() {
+  try {
+    const r = await fetch(API+'/api/auth/status');
+    const d = await r.json();
+    if (d.cookie_auth?.session_key_set) {
+      document.getElementById('conn-status').innerHTML = '<span class="status-dot dot-green"></span> 已配置';
+      document.getElementById('auth-dot').className = 'status-dot dot-green';
+      document.getElementById('stat-auth').textContent = '已配置';
+      document.getElementById('stat-auth').style.color = 'var(--green)';
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// TOAST & MODAL
+// ═══════════════════════════════════════════════════════
+function showToast(msg, type='info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast '+type;
+  const icons = {success:'✓',error:'✕',info:'ℹ'};
+  const colors = {success:'var(--green)',error:'var(--red)',info:'var(--accent2)'};
+  el.innerHTML = `<span style="font-weight:700;color:${colors[type]||colors.info};">${icons[type]||'ℹ'}</span> ${msg}`;
+  container.appendChild(el);
+  setTimeout(() => el.style.opacity='0', 2800);
+  setTimeout(() => el.remove(), 3100);
+}
+
+function closeModal(e) { if (e.target===document.getElementById('modal-overlay')) closeModalDirect(); }
+function closeModalDirect() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function genUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0;
+    return (c==='x'?r:(r&0x3|0x8)).toString(16);
+  });
+}
+
+function esc(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════
+// BOOTSTRAP
+// ═══════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
